@@ -8,7 +8,7 @@ namespace Circuids.Pulse.Blazor.WebAssembly.Sample.Conformance;
 /// each concrete platform — Blazor WASM, MAUI, WPF — inherits and asserts the values it expects
 /// to see when this binary is running on that platform.
 /// <para>
-/// This is the load-bearing pattern Pulse v0.1 was designed for: <em>one spec, many hosts</em>.
+/// This is the load-bearing pattern Pulse exists for: <em>one spec, many hosts</em>.
 /// </para>
 /// </summary>
 public abstract class RuntimeHostSpec
