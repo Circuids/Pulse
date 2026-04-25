@@ -123,8 +123,6 @@ public sealed class OutcomeAndDurationTests
         Assert.Equal(TestOutcome.Failed, r.Outcome);
     }
 
-    // ---- fixtures ----
-
     public sealed class ValueTaskSuite
     {
         [PulseCase]
