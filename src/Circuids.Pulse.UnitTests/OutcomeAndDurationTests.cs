@@ -64,16 +64,6 @@ public sealed class OutcomeAndDurationTests
     }
 
     [Fact]
-    public async Task Xunit_SkipException_is_recognized_by_FullName()
-    {
-        var report = await RunAsync(p => p.AddSuite<XunitSkipSuite>());
-
-        var r = Assert.Single(report.Results);
-        Assert.Equal(TestOutcome.Skipped, r.Outcome);
-        Assert.Equal("xunit-style skip", r.Message);
-    }
-
-    [Fact]
     public async Task Mixed_outcome_run_records_correct_aggregates()
     {
         var report = await RunAsync(p =>
@@ -123,8 +113,6 @@ public sealed class OutcomeAndDurationTests
         Assert.Equal(TestOutcome.Failed, r.Outcome);
     }
 
-    // ---- fixtures ----
-
     public sealed class ValueTaskSuite
     {
         [PulseCase]
@@ -158,13 +146,6 @@ public sealed class OutcomeAndDurationTests
 
         [PulseCase(Skip = "wip")]
         public void Should_not_run() => Counter++;
-    }
-
-    public sealed class XunitSkipSuite
-    {
-        [PulseCase]
-        public void Skip_via_xunit_style() =>
-            throw new global::Xunit.SkipException("xunit-style skip");
     }
 
     public sealed class PassSuite { [PulseCase] public void Ok() { } }

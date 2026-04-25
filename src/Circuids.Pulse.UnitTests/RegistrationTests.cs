@@ -168,8 +168,6 @@ public sealed class RegistrationTests
         Assert.Contains("Failed to construct suite", failed.Message);
     }
 
-    // ---- fixtures ----
-
     public sealed class EmptySuite
     {
         [PulseCase] public void NoOp() { }

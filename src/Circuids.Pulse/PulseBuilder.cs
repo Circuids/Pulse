@@ -31,6 +31,14 @@ public sealed class PulseBuilder
     public string? AssignedPlatform { get; set; }
 
     /// <summary>
+    /// Default cooperative timeout applied to tests that don't set
+    /// <see cref="PulseCaseAttribute.TimeoutMs"/> or <see cref="PulseMatrixAttribute.TimeoutMs"/>.
+    /// <see langword="null"/> (the default) means "no clock". Enforcement requires the test
+    /// method to accept a trailing <see cref="CancellationToken"/> parameter and honor it.
+    /// </summary>
+    public TimeSpan? DefaultTestTimeout { get; set; }
+
+    /// <summary>
     /// Registers a suite type that Pulse will resolve from the host's
     /// <see cref="IServiceProvider"/> (via <see cref="ActivatorUtilities"/>) at run time.
     /// </summary>

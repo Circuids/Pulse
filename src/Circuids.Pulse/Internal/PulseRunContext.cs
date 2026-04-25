@@ -15,8 +15,8 @@ internal sealed class PulseRunContext
     public required IServiceProvider HostServices { get; init; }
     public required string? SuiteFilter { get; init; }
     public required CancellationToken OuterCancellation { get; init; }
+    public required RuntimeEnvironment Environment { get; init; }
     public DateTimeOffset Timestamp { get; } = DateTimeOffset.UtcNow;
-    public RuntimeEnvironment Environment { get; } = RuntimeEnvironmentProbe.Capture();
 
     public void Add(TestResult result)
     {

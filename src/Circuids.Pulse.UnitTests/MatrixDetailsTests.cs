@@ -92,8 +92,6 @@ public sealed class MatrixDetailsTests
         Assert.Contains("0", failed.TestName);
     }
 
-    // ---- fixtures ----
-
     public sealed class PerRowSkipSuite
     {
         [PulseMatrix]

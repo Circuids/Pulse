@@ -1,7 +1,7 @@
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
-/// Validates the proposal's load-bearing pattern (D4): an abstract conformance base defines the
+/// Validates the load-bearing pattern: an abstract conformance base defines the
 /// behavior; concrete subclasses opt in by overriding and re-attributing with [PulseCase]. This
 /// is how Bridge will share specs across Blazor/MAUI/etc.
 /// </summary>
@@ -74,8 +74,6 @@ public sealed class ConformancePatternTests
         Assert.Contains(report.Results, r => r.TestName == nameof(MixedShapesSuite.Plain_case));
         Assert.Contains(report.Results, r => r.TestName.StartsWith("Matrix_row(", StringComparison.Ordinal));
     }
-
-    // ---- fixtures ----
 
     public abstract class ConformanceBase
     {

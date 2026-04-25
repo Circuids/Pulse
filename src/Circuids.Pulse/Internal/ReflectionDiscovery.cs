@@ -10,13 +10,17 @@ internal sealed class DiscoveredTest
         string testName,
         MethodInfo method,
         object?[] arguments,
-        string? skipReason)
+        string? skipReason,
+        bool acceptsCancellationToken,
+        int timeoutMs)
     {
         SuiteName = suiteName;
         TestName = testName;
         Method = method;
         Arguments = arguments;
         SkipReason = skipReason;
+        AcceptsCancellationToken = acceptsCancellationToken;
+        TimeoutMs = timeoutMs;
     }
 
     public string SuiteName { get; }
@@ -24,6 +28,17 @@ internal sealed class DiscoveredTest
     public MethodInfo Method { get; }
     public object?[] Arguments { get; }
     public string? SkipReason { get; }
+
+    /// <summary>
+    /// True when the method's last parameter is <see cref="CancellationToken"/>; the framework
+    /// appends the per-test linked token at invocation time.
+    /// </summary>
+    public bool AcceptsCancellationToken { get; }
+
+    /// <summary>
+    /// Per-test timeout in milliseconds (<c>0</c> = inherit <see cref="PulseBuilder.DefaultTestTimeout"/>).
+    /// </summary>
+    public int TimeoutMs { get; }
 }
 
 /// <summary>
@@ -62,12 +77,18 @@ internal static class ReflectionDiscovery
 
             ValidateReturnType(suiteName, method);
 
+            var parameters = method.GetParameters();
+            var acceptsCt = parameters.Length > 0
+                && parameters[^1].ParameterType == typeof(CancellationToken);
+            var declaredArity = acceptsCt ? parameters.Length - 1 : parameters.Length;
+
             if (caseAttr is not null)
             {
-                if (method.GetParameters().Length != 0)
+                if (declaredArity != 0)
                 {
                     throw new InvalidOperationException(
-                        $"[Pulse] [PulseCase] method '{suiteName}.{method.Name}' must take zero parameters. " +
+                        $"[Pulse] [PulseCase] method '{suiteName}.{method.Name}' must take zero parameters " +
+                        "(an optional trailing CancellationToken is allowed). " +
                         "Use [PulseMatrix] + [PulseRow(...)] for parameterized tests.");
                 }
 
@@ -76,11 +97,12 @@ internal static class ReflectionDiscovery
                     testName: caseAttr.DisplayName ?? method.Name,
                     method: method,
                     arguments: Array.Empty<object?>(),
-                    skipReason: caseAttr.Skip));
+                    skipReason: caseAttr.Skip,
+                    acceptsCancellationToken: acceptsCt,
+                    timeoutMs: caseAttr.TimeoutMs));
                 continue;
             }
 
-            // matrixAttr is not null
             var rowAttrs = method.GetCustomAttributes<PulseRowAttribute>(inherit: true).ToArray();
             if (rowAttrs.Length == 0)
             {
@@ -89,16 +111,15 @@ internal static class ReflectionDiscovery
                     "Add at least one [PulseRow(...)] attribute or convert the method to [PulseCase].");
             }
 
-            var parameters = method.GetParameters();
             var displayRoot = matrixAttr!.DisplayName ?? method.Name;
 
             foreach (var row in rowAttrs)
             {
-                if (row.Arguments.Length != parameters.Length)
+                if (row.Arguments.Length != declaredArity)
                 {
                     throw new InvalidOperationException(
                         $"[Pulse] [PulseRow] on '{suiteName}.{method.Name}' supplies {row.Arguments.Length} " +
-                        $"argument(s) but the method expects {parameters.Length}.");
+                        $"argument(s) but the method expects {declaredArity}.");
                 }
 
                 var rowName = $"{displayRoot}({FormatArguments(row.Arguments)})";
@@ -109,7 +130,9 @@ internal static class ReflectionDiscovery
                     testName: rowName,
                     method: method,
                     arguments: row.Arguments,
-                    skipReason: skip));
+                    skipReason: skip,
+                    acceptsCancellationToken: acceptsCt,
+                    timeoutMs: matrixAttr.TimeoutMs));
             }
         }
 

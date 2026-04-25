@@ -1,8 +1,7 @@
 namespace Circuids.Pulse;
 
 /// <summary>
-/// Marks a single conformance case. Mutually exclusive with <see cref="PulseMatrixAttribute"/>:
-/// a method tagged with both attributes is rejected at registration time.
+/// Marks a single conformance case. Mutually exclusive with <see cref="PulseMatrixAttribute"/>.
 /// </summary>
 [AttributeUsage(AttributeTargets.Method, AllowMultiple = false, Inherited = true)]
 public sealed class PulseCaseAttribute : Attribute
@@ -15,4 +14,11 @@ public sealed class PulseCaseAttribute : Attribute
     /// the message and the test method is not invoked.
     /// </summary>
     public string? Skip { get; init; }
+
+    /// <summary>
+    /// Per-test cooperative timeout in milliseconds. <c>0</c> means "inherit
+    /// <see cref="PulseBuilder.DefaultTestTimeout"/>". Enforcement requires the test method to
+    /// accept a trailing <see cref="CancellationToken"/> parameter and honor it.
+    /// </summary>
+    public int TimeoutMs { get; init; }
 }

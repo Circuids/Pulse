@@ -14,9 +14,11 @@ builder.Services.AddScoped(sp => new HttpClient { BaseAddress = new Uri(builder.
 builder.Services.AddPulse(p =>
 {
     p.AssignedPlatform = "Blazor.WebAssembly";
+    p.DefaultTestTimeout = TimeSpan.FromSeconds(10);
     p.AddSuite<WebAssemblyHostSuite>();
     p.AddSuite<HttpClientSuite>();
     p.AddSuite<ViewportMatrixSuite>();
+    p.AddSuite<LifetimeAndTimeoutSuite>();
 });
 
 await builder.Build().RunAsync();

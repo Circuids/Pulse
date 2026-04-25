@@ -9,18 +9,11 @@ using Microsoft.Testing.Platform.TestHost;
 namespace Circuids.Pulse.Internal;
 
 /// <summary>
-/// Pulse's <see cref="ITestFramework"/> implementation. Hosted inside the consumer host app via
-/// <c>Microsoft.Testing.Platform.Builder.TestApplication.CreateBuilderAsync</c>; receives discovery
-/// and execution requests from MTP and publishes <see cref="TestNodeUpdateMessage"/>s onto MTP's
-/// message bus.
+/// MTP <see cref="ITestFramework"/> adapter. Hosted in-process per <see cref="ITestExecutor.RunAsync(System.Threading.CancellationToken)"/>
+/// invocation; drives discovery and execution and dual-writes results to MTP's message bus and
+/// the shared <see cref="PulseRunContext"/> so the consumer receives a strongly-typed
+/// <see cref="TestRunReport"/>.
 /// </summary>
-/// <remarks>
-/// Per the v1 design (proposal §4.3 / §4.4), this type is a real MTP <c>ITestFramework</c> — Pulse
-/// reuses MTP's request/response pump, message bus, and cancellation plumbing rather than
-/// reinventing them. Side-effect: every executed test is also captured into the shared
-/// <see cref="PulseRunContext"/> so the consumer-facing <see cref="ITestExecutor"/> can return a
-/// strongly-typed <see cref="TestRunReport"/>.
-/// </remarks>
 internal sealed class PulseTestFramework : ITestFramework, IDataProducer
 {
     private readonly PulseRunContext _runContext;
@@ -35,7 +28,7 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
     public string DisplayName => "Circuids.Pulse";
     public string Description => "Circuids.Pulse runtime test runner.";
 
-    public Type[] DataTypesProduced { get; } = new[] { typeof(TestNodeUpdateMessage) };
+    public Type[] DataTypesProduced { get; } = [typeof(TestNodeUpdateMessage)];
 
     public Task<bool> IsEnabledAsync() => Task.FromResult(true);
 
@@ -148,13 +141,84 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
                 continue;
             }
 
-            foreach (var test in tests)
+            try
             {
-                if (context.CancellationToken.IsCancellationRequested) return;
-                _runContext.OuterCancellation.ThrowIfCancellationRequested();
+                await InvokeLifetimeAsync(suiteInstance, initialize: true, context, sessionUid, suiteName)
+                    .ConfigureAwait(false);
 
-                await RunOneAsync(context, sessionUid, suiteInstance, test).ConfigureAwait(false);
+                foreach (var test in tests)
+                {
+                    if (context.CancellationToken.IsCancellationRequested) return;
+                    _runContext.OuterCancellation.ThrowIfCancellationRequested();
+
+                    await RunOneAsync(context, sessionUid, suiteInstance, test).ConfigureAwait(false);
+                }
             }
+            finally
+            {
+                await InvokeLifetimeAsync(suiteInstance, initialize: false, context, sessionUid, suiteName)
+                    .ConfigureAwait(false);
+                await DisposeSuiteAsync(suiteInstance, context, sessionUid, suiteName)
+                    .ConfigureAwait(false);
+            }
+        }
+    }
+
+    private async Task InvokeLifetimeAsync(
+        object suiteInstance,
+        bool initialize,
+        ExecuteRequestContext context,
+        SessionUid sessionUid,
+        string suiteName)
+    {
+        if (suiteInstance is not IPulseLifetime lifetime) return;
+
+        var ct = _runContext.OuterCancellation;
+        var label = initialize ? "(suite InitializeAsync)" : "(suite DisposeAsync)";
+        try
+        {
+            if (initialize) await lifetime.InitializeAsync(ct).ConfigureAwait(false);
+            else await lifetime.DisposeAsync(ct).ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            await ReportFailureAsync(
+                context, sessionUid, suiteName,
+                testName: label,
+                message: ex.Message,
+                stack: ex.StackTrace,
+                elapsed: TimeSpan.Zero,
+                exception: ex).ConfigureAwait(false);
+        }
+    }
+
+    private async Task DisposeSuiteAsync(
+        object suiteInstance,
+        ExecuteRequestContext context,
+        SessionUid sessionUid,
+        string suiteName)
+    {
+        try
+        {
+            switch (suiteInstance)
+            {
+                case IAsyncDisposable ad:
+                    await ad.DisposeAsync().ConfigureAwait(false);
+                    break;
+                case IDisposable d:
+                    d.Dispose();
+                    break;
+            }
+        }
+        catch (Exception ex)
+        {
+            await ReportFailureAsync(
+                context, sessionUid, suiteName,
+                testName: "(suite Dispose)",
+                message: ex.Message,
+                stack: ex.StackTrace,
+                elapsed: TimeSpan.Zero,
+                exception: ex).ConfigureAwait(false);
         }
     }
 
@@ -173,10 +237,18 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
             return;
         }
 
+        var timeout = ResolveTimeout(test);
+        using var perTestCts = CancellationTokenSource.CreateLinkedTokenSource(_runContext.OuterCancellation);
+        if (timeout is { } t) perTestCts.CancelAfter(t);
+
+        var arguments = test.AcceptsCancellationToken
+            ? Append(test.Arguments, perTestCts.Token)
+            : test.Arguments;
+
         var stopwatch = Stopwatch.StartNew();
         try
         {
-            var returned = test.Method.Invoke(suiteInstance, test.Arguments);
+            var returned = test.Method.Invoke(suiteInstance, arguments);
             await AwaitIfNeeded(returned).ConfigureAwait(false);
 
             stopwatch.Stop();
@@ -197,6 +269,23 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
                 return;
             }
 
+            // Per-test timeout fired (linked CTS), but the outer run isn't cancelled → timeout failure.
+            if (ex is OperationCanceledException
+                && perTestCts.IsCancellationRequested
+                && !_runContext.OuterCancellation.IsCancellationRequested
+                && timeout is { } tm)
+            {
+                await ReportFailureAsync(
+                    context, sessionUid,
+                    suiteName: test.SuiteName,
+                    testName: test.TestName,
+                    message: $"Test exceeded timeout of {tm.TotalMilliseconds:F0}ms",
+                    stack: ex.StackTrace,
+                    elapsed: stopwatch.Elapsed,
+                    exception: ex).ConfigureAwait(false);
+                return;
+            }
+
             await ReportFailureAsync(
                 context, sessionUid,
                 suiteName: test.SuiteName,
@@ -206,6 +295,20 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
                 elapsed: stopwatch.Elapsed,
                 exception: ex).ConfigureAwait(false);
         }
+    }
+
+    private TimeSpan? ResolveTimeout(DiscoveredTest test)
+    {
+        if (test.TimeoutMs > 0) return TimeSpan.FromMilliseconds(test.TimeoutMs);
+        return _runContext.Builder.DefaultTestTimeout;
+    }
+
+    private static object?[] Append(object?[] source, object? value)
+    {
+        var copy = new object?[source.Length + 1];
+        Array.Copy(source, copy, source.Length);
+        copy[^1] = value;
+        return copy;
     }
 
     private async Task ReportPassedAsync(
