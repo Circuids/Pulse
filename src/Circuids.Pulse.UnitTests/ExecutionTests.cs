@@ -148,8 +148,6 @@ public sealed class ExecutionTests
         Assert.Equal(1, counter.Value);
     }
 
-    // ---- fixtures ----
-
     public sealed class PassingSuite
     {
         [PulseCase] public void Always_passes() { }
