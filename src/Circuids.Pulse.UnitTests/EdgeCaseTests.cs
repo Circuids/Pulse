@@ -204,8 +204,6 @@ public sealed class EdgeCaseTests
         Assert.Equal(TestOutcome.Passed, r.Outcome);
     }
 
-    // ---- fixtures ----
-
     public sealed class PassSuite
     {
         [PulseCase] public void Ok() { }
