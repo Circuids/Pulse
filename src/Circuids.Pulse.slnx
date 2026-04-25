@@ -1,0 +1,11 @@
+<Solution>
+  <Folder Name="/Samples/">
+    <Project Path="../sample/Circuids.Pulse.Blazor.WebAssembly.Sample/Circuids.Pulse.Blazor.WebAssembly.Sample.csproj" Id="48e99af0-d039-4765-9cbd-f30c5b60cea4" />
+  </Folder>
+  <Folder Name="/Source/">
+    <Project Path="Circuids.Pulse/Circuids.Pulse.csproj" />
+  </Folder>
+  <Folder Name="/Tests/">
+    <Project Path="Circuids.Pulse.UnitTests/Circuids.Pulse.UnitTests.csproj" />
+  </Folder>
+</Solution>
