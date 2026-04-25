@@ -9,7 +9,9 @@ public static class PulseServiceCollectionExtensions
 {
     /// <summary>
     /// Registers <see cref="ITestExecutor"/> and the Pulse builder configuration with the host's
-    /// <see cref="IServiceCollection"/>. The executor is registered as <see cref="ServiceLifetime.Scoped"/>.
+    /// <see cref="IServiceCollection"/>. The executor is registered as <see cref="ServiceLifetime.Scoped"/>;
+    /// the captured <see cref="RuntimeEnvironment"/> is registered as a singleton so consumer
+    /// suites can inject it directly instead of calling <c>RuntimeInformation</c> themselves.
     /// </summary>
     public static IServiceCollection AddPulse(
         this IServiceCollection services,
@@ -22,6 +24,7 @@ public static class PulseServiceCollectionExtensions
         configure(builder);
 
         services.TryAddSingleton(builder);
+        services.TryAddSingleton(RuntimeEnvironmentProbe.Capture());
         services.TryAddScoped<ITestExecutor, TestExecutor>();
         return services;
     }
