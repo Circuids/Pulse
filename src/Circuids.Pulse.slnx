@@ -1,6 +1,7 @@
 <Solution>
   <Folder Name="/Samples/">
     <Project Path="../sample/Circuids.Pulse.Blazor.WebAssembly.Sample/Circuids.Pulse.Blazor.WebAssembly.Sample.csproj" Id="48e99af0-d039-4765-9cbd-f30c5b60cea4" />
+    <Project Path="../sample/Circuids.Pulse.Maui.Sample/Circuids.Pulse.Maui.Sample.csproj" />
   </Folder>
   <Folder Name="/Source/">
     <Project Path="Circuids.Pulse/Circuids.Pulse.csproj" />
