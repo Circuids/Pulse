@@ -1,2 +1,6 @@
+v0.1.1-Experimental
+- Minor Fixes for Build Pipeline
+
 v0.1.0-Experimental
 - Initial release of Circuids.Pulse
+

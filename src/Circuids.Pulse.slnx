@@ -9,4 +9,5 @@
   <Folder Name="/Tests/">
     <Project Path="Circuids.Pulse.UnitTests/Circuids.Pulse.UnitTests.csproj" />
   </Folder>
+
 </Solution>
