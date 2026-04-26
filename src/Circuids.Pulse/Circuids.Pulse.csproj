@@ -7,6 +7,11 @@
 		<LangVersion>latest</LangVersion>
 		<IsPackable>true</IsPackable>
 
+		<!-- Pulse is a library, not a stand-alone testhost. Suppress MTP's auto-detection so
+		     C# Dev Kit / Test Explorer don't schedule discovery on this DLL. -->
+		<IsTestProject>false</IsTestProject>
+		<IsTestingPlatformApplication>false</IsTestingPlatformApplication>
+
 		<PackageId>Circuids.Pulse</PackageId>
 		<Version>0.1.0-experimental</Version>
 		<Authors>Circuids</Authors>
@@ -26,7 +31,10 @@
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="8.0.2" />
-		<PackageReference Include="Microsoft.Testing.Platform" Version="1.9.1" />
+		<!-- Keep MTP's MSBuild targets local — stops them propagating to consumer projects
+		     (Blazor / MAUI samples) and marking those as testhosts. Runtime DLL still flows. -->
+		<PackageReference Include="Microsoft.Testing.Platform" Version="1.9.1"
+		                  PrivateAssets="build;buildMultitargeting;buildTransitive;analyzers" />
 	</ItemGroup>
 
 	<ItemGroup>
