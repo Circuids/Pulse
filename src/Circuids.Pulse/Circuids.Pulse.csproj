@@ -13,7 +13,7 @@
 		<IsTestingPlatformApplication>false</IsTestingPlatformApplication>
 
 		<PackageId>Circuids.Pulse</PackageId>
-		<Version>0.1.0-experimental</Version>
+		<Version>0.1.1-experimental</Version>
 		<Authors>Circuids</Authors>
 		<Company>Circuids</Company>
 		<Description>Slim embeddable runtime test runner for .NET. Runs conformance test suites inside a real Blazor / MAUI / WPF / WinForms host with the real DI graph and real platform services. Built on Microsoft.Testing.Platform.</Description>
