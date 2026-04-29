@@ -9,8 +9,8 @@ public interface ITestExecutor
     Task<TestRunReport> RunAsync(CancellationToken cancellationToken = default);
 
     /// <summary>
-    /// Runs only the suite whose suite name (the registered type's <see cref="Type.FullName"/> or
-    /// the configured display name) matches <paramref name="suiteName"/> exactly.
+    /// Runs only the suite whose suite name (the registered type's <see cref="Type.FullName"/>)
+    /// matches <paramref name="suiteName"/> exactly.
     /// </summary>
     Task<TestRunReport> RunAsync(string suiteName, CancellationToken cancellationToken = default);
 }
