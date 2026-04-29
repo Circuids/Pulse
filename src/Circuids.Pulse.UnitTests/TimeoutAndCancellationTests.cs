@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.TimeoutAndCancellation;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -68,44 +70,4 @@ public sealed class TimeoutAndCancellationTests
         Assert.Equal(TestOutcome.Passed, r.Outcome);
     }
 
-    private sealed class TokenAcceptingSuite
-    {
-        public static CancellationToken Received;
-
-        [PulseCase]
-        public void Accepts_token(CancellationToken ct) => Received = ct;
-    }
-
-    private sealed class AttributeTimeoutSuite
-    {
-        [PulseCase(TimeoutMs = 50)]
-        public async Task Sleeps_too_long(CancellationToken ct)
-            => await Task.Delay(TimeSpan.FromSeconds(5), ct);
-    }
-
-    private sealed class InheritedTimeoutSuite
-    {
-        [PulseCase]
-        public async Task Sleeps_too_long(CancellationToken ct)
-            => await Task.Delay(TimeSpan.FromSeconds(5), ct);
-    }
-
-    private sealed class MatrixWithTokenSuite
-    {
-        [PulseMatrix]
-        [PulseRow(1)]
-        [PulseRow(2)]
-        public Task Row_with_token(int n, CancellationToken ct)
-        {
-            Assert.True(n > 0);
-            Assert.True(ct.CanBeCanceled);
-            return Task.CompletedTask;
-        }
-    }
-
-    private sealed class UncooperativeSuite
-    {
-        [PulseCase(TimeoutMs = 50)]
-        public void No_token_no_enforcement() { /* completes instantly anyway */ }
-    }
 }

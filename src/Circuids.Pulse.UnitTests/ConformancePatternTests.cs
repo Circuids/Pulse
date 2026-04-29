@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.ConformancePattern;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -75,74 +77,4 @@ public sealed class ConformancePatternTests
         Assert.Contains(report.Results, r => r.TestName.StartsWith("Matrix_row(", StringComparison.Ordinal));
     }
 
-    public abstract class ConformanceBase
-    {
-        protected static int _counter;
-
-        public virtual void Spec_test()
-        {
-            _counter++;
-        }
-    }
-
-    public sealed class DerivedSuite : ConformanceBase
-    {
-        public static int Counter
-        {
-            get => _counter;
-            set => _counter = value;
-        }
-
-        [PulseCase]
-        public override void Spec_test() => base.Spec_test();
-    }
-
-    public abstract class AttributedConformanceBase
-    {
-        [PulseCase]
-        public virtual void Inherited_spec() { }
-    }
-
-    public sealed class DerivedInheritsAttrSuite : AttributedConformanceBase
-    {
-        // Override exists but no attribute applied here; inherit:true on the lookup picks up base's.
-        public override void Inherited_spec() => base.Inherited_spec();
-    }
-
-    public sealed class StaticMethodSuite
-    {
-        // Should NOT be discovered (BindingFlags.Instance excludes static).
-        [PulseCase]
-        public static void Static_one() => throw new InvalidOperationException("must not run");
-
-        [PulseCase]
-        public void Instance_one() { }
-    }
-
-    public sealed class PrivateMethodSuite
-    {
-        // Discovery uses BindingFlags.Public — non-public methods are skipped even if attributed.
-        [PulseCase]
-        private void Private_one() => throw new InvalidOperationException("must not run");
-
-        [PulseCase]
-        public void Public_one() { }
-    }
-
-    public sealed class MixedAnnotationSuite
-    {
-        [PulseCase] public void Tagged_one() { }
-        public void Untagged_one() => throw new InvalidOperationException("must not run");
-    }
-
-    public sealed class MixedShapesSuite
-    {
-        [PulseCase]
-        public void Plain_case() { }
-
-        [PulseMatrix]
-        [PulseRow(1)]
-        [PulseRow(2)]
-        public void Matrix_row(int n) => Assert.True(n > 0);
-    }
 }

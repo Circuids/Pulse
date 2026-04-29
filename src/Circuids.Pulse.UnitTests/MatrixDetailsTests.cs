@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.MatrixDetails;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -92,76 +94,4 @@ public sealed class MatrixDetailsTests
         Assert.Contains("0", failed.TestName);
     }
 
-    public sealed class PerRowSkipSuite
-    {
-        [PulseMatrix]
-        [PulseRow(1)]
-        [PulseRow(99, Skip = "flaky platform")]
-        [PulseRow(2)]
-        public void Width(int w) => Assert.True(w > 0);
-    }
-
-    public sealed class MatrixLevelSkipSuite
-    {
-        // Matrix-level Skip overrides every row's Skip behavior.
-        [PulseMatrix(Skip = "temporarily disabled")]
-        [PulseRow(1)]
-        [PulseRow(2)]
-        [PulseRow(3)]
-        public void Width(int w) => throw new InvalidOperationException("must not run");
-    }
-
-    public sealed class DisplayNameCaseSuite
-    {
-        [PulseCase(DisplayName = "renders correctly on phone")]
-        public void Method_name_should_be_replaced() { }
-    }
-
-    public sealed class DisplayNameMatrixSuite
-    {
-        [PulseMatrix(DisplayName = "viewport spec")]
-        [PulseRow(390)]
-        [PulseRow(768)]
-        public void Method_name_replaced(int w) => Assert.True(w > 0);
-    }
-
-    public sealed class ArgumentFormattingSuite
-    {
-        [PulseMatrix]
-        [PulseRow("hello")]
-        public void StringArg(string s) => Assert.NotNull(s);
-
-        [PulseMatrix]
-        [PulseRow('x')]
-        public void CharArg(char c) => Assert.NotEqual('\0', c);
-
-        [PulseMatrix]
-        [PulseRow(true)]
-        public void BoolArg(bool b) => Assert.True(b);
-
-        [PulseMatrix]
-        [PulseRow(new object?[] { null })]
-        public void NullArg(string? s) => Assert.Null(s);
-    }
-
-    public sealed class MultiParamSuite
-    {
-        [PulseMatrix]
-        [PulseRow(1, "two", true)]
-        public void ThreeArgs(int a, string b, bool c)
-        {
-            Assert.Equal(1, a);
-            Assert.Equal("two", b);
-            Assert.True(c);
-        }
-    }
-
-    public sealed class MixedOutcomeMatrixSuite
-    {
-        [PulseMatrix]
-        [PulseRow(1)]
-        [PulseRow(0)]
-        [PulseRow(2)]
-        public void Width_must_be_positive(int w) => Assert.True(w > 0, $"w={w}");
-    }
 }

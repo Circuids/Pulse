@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.DiscoveryValidation;
+
 namespace Circuids.Pulse.UnitTests;
 
 public sealed class DiscoveryValidationTests
@@ -56,32 +58,17 @@ public sealed class DiscoveryValidationTests
         Assert.Contains("must return void, Task, or ValueTask", r.Message);
     }
 
-    public sealed class BothAttributesSuite
+    [Fact]
+    public async Task Constructed_suite_is_disposed_when_discovery_fails()
     {
-        [PulseCase, PulseMatrix]
-        [PulseRow(1)]
-        public void Both(int x) { }
+        DisposableInvalidSuite.DisposeCount = 0;
+
+        var report = await RunAsync<DisposableInvalidSuite>();
+
+        var r = Assert.Single(report.Results);
+        Assert.Equal(TestOutcome.Failed, r.Outcome);
+        Assert.Equal("(discovery)", r.TestName);
+        Assert.Equal(1, DisposableInvalidSuite.DisposeCount);
     }
 
-    public sealed class CaseWithParameters
-    {
-        [PulseCase] public void Has_args(int x) { }
-    }
-
-    public sealed class MatrixWithoutRows
-    {
-        [PulseMatrix] public void No_rows(int x) { }
-    }
-
-    public sealed class RowArgCountMismatch
-    {
-        [PulseMatrix]
-        [PulseRow(1, 2, 3)]
-        public void One_arg_method(int x) { }
-    }
-
-    public sealed class NonVoidReturn
-    {
-        [PulseCase] public int Returns_int() => 42;
-    }
 }

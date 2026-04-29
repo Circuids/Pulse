@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.Lifetime;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -29,16 +31,44 @@ public sealed class LifetimeTests
     public async Task Initialize_failure_is_reported_and_tests_still_dispose()
     {
         InitFailingSuite.DisposeCalled = false;
+        InitFailingSuite.TestCalled = false;
         var report = await RunAsync(p => p.AddSuite<InitFailingSuite>());
 
-        // Init failure surfaces as a synthetic failed entry; suite tests are still discovered/run
-        // (lifetime spec lets the suite report the failure but doesn't gate execution).
         var initFailure = Assert.Single(
             report.Results,
             r => r.TestName == "(suite InitializeAsync)");
         Assert.Equal(TestOutcome.Failed, initFailure.Outcome);
         Assert.Contains("init-boom", initFailure.Message ?? "");
+
+        var skipped = Assert.Single(report.Results, r => r.TestName == nameof(InitFailingSuite.Dummy));
+        Assert.Equal(TestOutcome.Skipped, skipped.Outcome);
+        Assert.Equal("Suite initialization failed: init-boom", skipped.Message);
+        Assert.False(InitFailingSuite.TestCalled, "Tests must not run after suite initialization fails.");
         Assert.True(InitFailingSuite.DisposeCalled, "Dispose must run even after init failure.");
+    }
+
+    [Fact]
+    public async Task Initialize_failure_does_not_stop_following_suites()
+    {
+        InitFailingSuite.DisposeCalled = false;
+        InitFailingSuite.TestCalled = false;
+        FollowingSuite.Called = false;
+
+        var report = await RunAsync(p =>
+        {
+            p.AddSuite<InitFailingSuite>();
+            p.AddSuite<FollowingSuite>();
+        });
+
+        Assert.Contains(report.Results, r =>
+            r.SuiteName == typeof(InitFailingSuite).FullName
+            && r.TestName == nameof(InitFailingSuite.Dummy)
+            && r.Outcome == TestOutcome.Skipped);
+        Assert.Contains(report.Results, r =>
+            r.SuiteName == typeof(FollowingSuite).FullName
+            && r.TestName == nameof(FollowingSuite.Ok)
+            && r.Outcome == TestOutcome.Passed);
+        Assert.True(FollowingSuite.Called);
     }
 
     [Fact]
@@ -50,53 +80,4 @@ public sealed class LifetimeTests
         Assert.Equal(1, DisposableOnlySuite.DisposeCount);
     }
 
-    private sealed class LifecycleSuite : IPulseLifetime, IAsyncDisposable
-    {
-        public static readonly List<string> Trace = [];
-
-        public Task InitializeAsync(CancellationToken cancellationToken)
-        {
-            Trace.Add("init");
-            return Task.CompletedTask;
-        }
-
-        public Task DisposeAsync(CancellationToken cancellationToken)
-        {
-            Trace.Add("dispose-async-lifetime");
-            return Task.CompletedTask;
-        }
-
-        ValueTask IAsyncDisposable.DisposeAsync()
-        {
-            Trace.Add("dispose-async-disposable");
-            return ValueTask.CompletedTask;
-        }
-
-        [PulseCase] public void A() => Trace.Add("test:a");
-        [PulseCase] public void B() => Trace.Add("test:b");
-    }
-
-    private sealed class InitFailingSuite : IPulseLifetime
-    {
-        public static bool DisposeCalled;
-
-        public Task InitializeAsync(CancellationToken cancellationToken)
-            => throw new InvalidOperationException("init-boom");
-
-        public Task DisposeAsync(CancellationToken cancellationToken)
-        {
-            DisposeCalled = true;
-            return Task.CompletedTask;
-        }
-
-        [PulseCase] public void Dummy() { }
-    }
-
-    private sealed class DisposableOnlySuite : IDisposable
-    {
-        public static int DisposeCount;
-        public void Dispose() => DisposeCount++;
-
-        [PulseCase] public void Trivial() { }
-    }
 }

@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.Registration;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -168,18 +170,4 @@ public sealed class RegistrationTests
         Assert.Contains("Failed to construct suite", failed.Message);
     }
 
-    public sealed class EmptySuite
-    {
-        [PulseCase] public void NoOp() { }
-    }
-
-    public sealed class SuiteA { [PulseCase] public void A() { } }
-    public sealed class SuiteB { [PulseCase] public void B() { } }
-    public sealed class SuiteC { [PulseCase] public void C() { } }
-
-    public sealed class ThrowsInCtorSuite
-    {
-        public ThrowsInCtorSuite() => throw new InvalidOperationException("ctor boom");
-        [PulseCase] public void NoOp() { }
-    }
 }
