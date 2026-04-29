@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Testing.Platform.Builder;
 
@@ -15,11 +16,13 @@ internal sealed class TestExecutor : ITestExecutor
 
     private readonly IServiceProvider _services;
     private readonly PulseBuilder _builder;
+    private readonly PulseRunCoordinator _runCoordinator;
 
-    public TestExecutor(IServiceProvider services, PulseBuilder builder)
+    public TestExecutor(IServiceProvider services, PulseBuilder builder, PulseRunCoordinator runCoordinator)
     {
         _services = services ?? throw new ArgumentNullException(nameof(services));
         _builder = builder ?? throw new ArgumentNullException(nameof(builder));
+        _runCoordinator = runCoordinator ?? throw new ArgumentNullException(nameof(runCoordinator));
     }
 
     public Task<TestRunReport> RunAsync(CancellationToken cancellationToken = default) =>
@@ -34,6 +37,9 @@ internal sealed class TestExecutor : ITestExecutor
     private async Task<TestRunReport> RunCoreAsync(string? suiteFilter, CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
+
+        using var runLease = _runCoordinator.Enter();
+        var stopwatch = Stopwatch.StartNew();
 
         var environment = _services.GetService<RuntimeEnvironment>() ?? RuntimeEnvironmentProbe.Capture();
 
@@ -57,6 +63,9 @@ internal sealed class TestExecutor : ITestExecutor
         // MTP's int return code is intentionally discarded; TestRunReport.Success is the contract.
         _ = await application.RunAsync().ConfigureAwait(false);
 
+        var results = runContext.Snapshot();
+        stopwatch.Stop();
+
         return new TestRunReport
         {
             AssignedPlatform = string.IsNullOrWhiteSpace(_builder.AssignedPlatform)
@@ -64,7 +73,8 @@ internal sealed class TestExecutor : ITestExecutor
                 : _builder.AssignedPlatform!,
             RuntimeEnvironment = runContext.Environment,
             Timestamp = runContext.Timestamp,
-            Results = runContext.Snapshot(),
+            Results = results,
+            Duration = stopwatch.Elapsed,
         };
     }
 }
