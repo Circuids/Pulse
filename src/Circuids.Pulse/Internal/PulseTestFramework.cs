@@ -24,7 +24,7 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
     }
 
     public string Uid => "Circuids.Pulse";
-    public string Version => "0.1.0";
+    public string Version => "1.0.0";
     public string DisplayName => "Circuids.Pulse";
     public string Description => "Circuids.Pulse runtime test runner.";
 
@@ -124,54 +124,76 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
                 continue;
             }
 
-            IReadOnlyList<DiscoveredTest> tests;
+            var lifetimeDisposeRequired = false;
             try
             {
-                tests = ReflectionDiscovery.Discover(registration.SuiteType);
-            }
-            catch (Exception ex)
-            {
-                await ReportFailureAsync(
-                    context, sessionUid, suiteName,
-                    testName: "(discovery)",
-                    message: ex.Message,
-                    stack: ex.StackTrace,
-                    elapsed: TimeSpan.Zero,
-                    exception: ex).ConfigureAwait(false);
-                continue;
-            }
+                IReadOnlyList<DiscoveredTest> tests;
+                try
+                {
+                    tests = ReflectionDiscovery.Discover(registration.SuiteType);
+                }
+                catch (Exception ex)
+                {
+                    await ReportFailureAsync(
+                        context, sessionUid, suiteName,
+                        testName: "(discovery)",
+                        message: ex.Message,
+                        stack: ex.StackTrace,
+                        elapsed: TimeSpan.Zero,
+                        exception: ex).ConfigureAwait(false);
+                    continue;
+                }
 
-            try
-            {
-                await InvokeLifetimeAsync(suiteInstance, initialize: true, context, sessionUid, suiteName)
+                lifetimeDisposeRequired = suiteInstance is IPulseLifetime;
+                var initializationFailure = await InvokeLifetimeAsync(suiteInstance, initialize: true, context, sessionUid, suiteName)
                     .ConfigureAwait(false);
 
-                foreach (var test in tests)
+                if (initializationFailure is not null)
                 {
-                    if (context.CancellationToken.IsCancellationRequested) return;
-                    _runContext.OuterCancellation.ThrowIfCancellationRequested();
+                    var skipReason = $"Suite initialization failed: {initializationFailure}";
+                    foreach (var test in tests)
+                    {
+                        if (context.CancellationToken.IsCancellationRequested) return;
+                        _runContext.OuterCancellation.ThrowIfCancellationRequested();
 
-                    await RunOneAsync(context, sessionUid, suiteInstance, test).ConfigureAwait(false);
+                        var uid = new TestNodeUid($"{test.SuiteName}::{test.TestName}");
+                        await ReportSkippedAsync(context, sessionUid, uid, test, skipReason, TimeSpan.Zero)
+                            .ConfigureAwait(false);
+                    }
+                }
+                else
+                {
+                    foreach (var test in tests)
+                    {
+                        if (context.CancellationToken.IsCancellationRequested) return;
+                        _runContext.OuterCancellation.ThrowIfCancellationRequested();
+
+                        await RunOneAsync(context, sessionUid, suiteInstance, test).ConfigureAwait(false);
+                    }
                 }
             }
             finally
             {
-                await InvokeLifetimeAsync(suiteInstance, initialize: false, context, sessionUid, suiteName)
-                    .ConfigureAwait(false);
+                if (lifetimeDisposeRequired)
+                {
+                    await InvokeLifetimeAsync(suiteInstance, initialize: false, context, sessionUid, suiteName)
+                        .ConfigureAwait(false);
+                }
+
                 await DisposeSuiteAsync(suiteInstance, context, sessionUid, suiteName)
                     .ConfigureAwait(false);
             }
         }
     }
 
-    private async Task InvokeLifetimeAsync(
+    private async Task<string?> InvokeLifetimeAsync(
         object suiteInstance,
         bool initialize,
         ExecuteRequestContext context,
         SessionUid sessionUid,
         string suiteName)
     {
-        if (suiteInstance is not IPulseLifetime lifetime) return;
+        if (suiteInstance is not IPulseLifetime lifetime) return null;
 
         var ct = _runContext.OuterCancellation;
         var label = initialize ? "(suite InitializeAsync)" : "(suite DisposeAsync)";
@@ -179,6 +201,7 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
         {
             if (initialize) await lifetime.InitializeAsync(ct).ConfigureAwait(false);
             else await lifetime.DisposeAsync(ct).ConfigureAwait(false);
+            return null;
         }
         catch (Exception ex)
         {
@@ -189,6 +212,7 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
                 stack: ex.StackTrace,
                 elapsed: TimeSpan.Zero,
                 exception: ex).ConfigureAwait(false);
+            return initialize ? ex.Message : null;
         }
     }
 
