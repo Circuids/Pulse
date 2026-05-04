@@ -1,6 +1,8 @@
-v1.0.0
-- First stable v1 release of Circuids.Pulse.
+v1.0.0-preview1
+- First v1 preview release of Circuids.Pulse.
 - Locks the one-package in-app runner model for real host conformance tests.
+- Marks Pulse ready for real project adoption and production conformance pilots while stable v1 feedback is gathered from the .NET community.
+- Reinforces Pulse conformance tests as an extra runtime verification layer, not a replacement for unit, integration, UI, end-to-end, or other existing test types.
 - Adds v1 report schema metadata and total run duration to TestRunReport.
 - Enforces one active Pulse run per host service provider.
 - Skips suite tests after InitializeAsync failure while still running teardown.
