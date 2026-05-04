@@ -6,14 +6,14 @@ Pulse runs your tests inside the real app so you can verify behavior where it ac
 
 It is a slim, embeddable test runner for .NET host applications: Blazor, .NET MAUI, WPF, WinForms, Avalonia, Uno, console hosts, or anything that boots an `IServiceProvider`. Pulse executes `[PulseCase]` and `[PulseMatrix]` suites in-process with the consumer's real DI graph, real host services, and real platform APIs, then returns a strongly typed `TestRunReport` you can render, serialize, post, or store however you like.
 
-Pulse runs next to `dotnet test`, never instead of it. Unit tests prove your abstraction is internally consistent. Pulse proves the same boundary behavior inside the runtime that ships to users.
+Pulse runs next to `dotnet test`, never instead of it. Pulse conformance tests are an extra verification layer, not a replacement for unit, integration, UI, end-to-end, or other existing test types. Unit tests prove your abstraction is internally consistent. Pulse proves the same boundary behavior inside the runtime that ships to users.
 
-> **Status:** v1 (`1.0.0`). The public API is intentionally small, and the JSON shape of `TestRunReport` is the stability contract. Report changes are additive.
+> **Status:** v1 preview (`1.0.0-preview1`). This preview is intended for real project adoption and production conformance pilots while the .NET community reviews the architecture and suggests improvements before stable v1. The public API is intentionally small, and the JSON shape of `TestRunReport` is the stability contract. Report changes are additive.
 
 ## Install
 
 ```pwsh
-dotnet add package Circuids.Pulse
+dotnet add package Circuids.Pulse --version 1.0.0-preview1
 ```
 
 Targets `net8.0`, `net9.0`, and `net10.0`.
@@ -83,6 +83,8 @@ Render the report in your app UI, write it to a file, post it to a dashboard, or
 
 Pulse suites live inside your actual application. You do not run `dotnet test` on a Pulse host, and Pulse does not extend xUnit, NUnit, or MSTest.
 
+Think of Pulse conformance tests as a host-runtime layer in your existing test strategy. Keep your unit, integration, UI, end-to-end, and contract tests where they already provide value; add Pulse where the real app host, DI graph, or platform service is part of the behavior that must be proven.
+
 The typical product layout is:
 
 ```text
@@ -112,7 +114,7 @@ Use `*.TestSupport` for reusable specs, fakes, builders, and sample data. Use `*
 | Pulse | Behavior at the boundary where the real host matters. | Real DI graph, real `IJSRuntime`, real MAUI services, real `HttpClient`, real platform APIs. |
 | Both | A reusable abstraction must behave the same over fakes and the real platform implementation. | Shared `*.TestSupport` spec plus thin adapters. |
 
-Pulse does not eliminate mocks entirely. The conformance target should be real in a Pulse run; supporting dependencies can still be fake when appropriate.
+Pulse is additive. It does not eliminate mocks, replace existing test suites, or turn every behavior check into an in-app test. The conformance target should be real in a Pulse run; supporting dependencies can still be fake when appropriate.
 
 ## A Failure Pulse Is Meant To Catch
 
