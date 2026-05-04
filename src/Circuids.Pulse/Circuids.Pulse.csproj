@@ -13,7 +13,7 @@
 		<IsTestingPlatformApplication>false</IsTestingPlatformApplication>
 
 		<PackageId>Circuids.Pulse</PackageId>
-		<Version>1.0.0</Version>
+		<Version>1.0.0-preview1</Version>
 		<Authors>Circuids</Authors>
 		<Company>Circuids</Company>
 		<Description>Pulse runs your tests inside the real app so you can verify behavior where it actually matters. A slim, embeddable .NET test runner for real host apps, real DI graphs, and real platform services.</Description>
