@@ -117,6 +117,8 @@ MyProduct.ConformanceHost/     # optional dedicated app host for Pulse runs
 
 Use `*.TestSupport` for reusable specs, fakes, builders, and sample data. Use `*.Tests` for `dotnet test`. Use `*.ConformanceHost` when you want a dedicated real app host for Pulse instead of putting suites in the production app.
 
+For the detailed TestSupport/spec rules, see [Conformance Specs And Rules](docs/conformance-specs-and-rules.md).
+
 ## When To Use Pulse
 
 | Use this | When you need to prove | Typical dependencies |
@@ -214,6 +216,8 @@ public sealed class BrowserTokenStorageSuite : TokenStorageSpec
 **Specs define behavior. Adapters choose the runtime.**
 
 An interface-shaped spec can work as an alternate checklist when the body is tiny or each adapter should use its native assertion library, but the abstract implementation spec is the canonical v1 pattern because it keeps one behavior body shared across both runtimes.
+
+The full rulebook for shared specs, adapters, TestSupport, cleanup, and boundary-focused matrices lives in [Conformance Specs And Rules](docs/conformance-specs-and-rules.md).
 
 ## Writing Pulse Suites
 
