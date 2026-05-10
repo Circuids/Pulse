@@ -13,10 +13,11 @@
 		<IsTestingPlatformApplication>false</IsTestingPlatformApplication>
 
 		<PackageId>Circuids.Pulse</PackageId>
-		<Version>0.1.1-experimental</Version>
+		<Version>1.0.0-preview1</Version>
 		<Authors>Circuids</Authors>
 		<Company>Circuids</Company>
-		<Description>Slim embeddable runtime test runner for .NET. Runs conformance test suites inside a real Blazor / MAUI / WPF / WinForms host with the real DI graph and real platform services. Built on Microsoft.Testing.Platform.</Description>
+		<PackageIcon>icon.png</PackageIcon>
+		<Description>Pulse runs your tests inside the real app so you can verify behavior where it actually matters. A slim, embeddable .NET test runner for real host apps, real DI graphs, and real platform services.</Description>
 		<PackageTags>testing;runtime-tests;conformance;blazor;maui;mtp;microsoft-testing-platform</PackageTags>
 		<PackageLicenseExpression>MIT</PackageLicenseExpression>
 		<PackageReadmeFile>README.md</PackageReadmeFile>
@@ -27,6 +28,7 @@
 		<RepositoryType>git</RepositoryType>
 		<PublishRepositoryUrl>true</PublishRepositoryUrl>
 		<DebugType>portable</DebugType>
+		<Copyright>© Circuids. All rights reserved.</Copyright>
 	</PropertyGroup>
 
 	<ItemGroup>
@@ -39,6 +41,7 @@
 
 	<ItemGroup>
 		<None Include="..\..\README.md" Pack="true" PackagePath="\" Condition="Exists('..\..\README.md')" />
+		<None Include="..\..\images\icon.png" PackagePath="icon.png" Pack="true" />
 	</ItemGroup>
 
 </Project>

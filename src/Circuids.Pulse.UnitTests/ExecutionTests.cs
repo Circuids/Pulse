@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.Execution;
+
 namespace Circuids.Pulse.UnitTests;
 
 public sealed class ExecutionTests
@@ -148,58 +150,120 @@ public sealed class ExecutionTests
         Assert.Equal(1, counter.Value);
     }
 
-    public sealed class PassingSuite
+    [Fact]
+    public async Task Concurrent_runs_on_same_executor_are_rejected()
     {
-        [PulseCase] public void Always_passes() { }
+        LongRunningSuite.Reset();
+        var services = new ServiceCollection();
+        services.AddPulse(p => p.AddSuite<LongRunningSuite>());
+        await using var sp = services.BuildServiceProvider();
+        var executor = sp.GetRequiredService<ITestExecutor>();
+
+        var firstRun = executor.RunAsync(TestContext.Current.CancellationToken);
+        await LongRunningSuite.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        var ex = await Assert.ThrowsAsync<InvalidOperationException>(
+            () => executor.RunAsync(TestContext.Current.CancellationToken));
+
+        Assert.Contains("already running", ex.Message, StringComparison.OrdinalIgnoreCase);
+        Assert.Contains("shared application runtime", ex.Message, StringComparison.OrdinalIgnoreCase);
+
+        LongRunningSuite.Release();
+        var report = await firstRun;
+        Assert.True(report.Success);
     }
 
-    public sealed class FailingSuite
+    [Fact]
+    public async Task Concurrent_runs_from_different_scopes_are_rejected()
     {
-        [PulseCase] public void Always_fails() => throw new InvalidOperationException("boom");
+        LongRunningSuite.Reset();
+        var services = new ServiceCollection();
+        services.AddPulse(p => p.AddSuite<LongRunningSuite>());
+        await using var sp = services.BuildServiceProvider();
+        await using var firstScope = sp.CreateAsyncScope();
+        await using var secondScope = sp.CreateAsyncScope();
+
+        var firstExecutor = firstScope.ServiceProvider.GetRequiredService<ITestExecutor>();
+        var secondExecutor = secondScope.ServiceProvider.GetRequiredService<ITestExecutor>();
+
+        var firstRun = firstExecutor.RunAsync(TestContext.Current.CancellationToken);
+        await LongRunningSuite.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+
+        await Assert.ThrowsAsync<InvalidOperationException>(
+            () => secondExecutor.RunAsync(TestContext.Current.CancellationToken));
+
+        LongRunningSuite.Release();
+        var report = await firstRun;
+        Assert.True(report.Success);
     }
 
-    public sealed class DeclarativelySkippedSuite
+    [Fact]
+    public async Task Run_can_start_again_after_successful_run()
     {
-        public static bool WasInvoked;
-        [PulseCase(Skip = "not yet")]
-        public void Skipped_test() => WasInvoked = true;
+        var services = new ServiceCollection();
+        services.AddPulse(p => p.AddSuite<PassingSuite>());
+        await using var sp = services.BuildServiceProvider();
+        var executor = sp.GetRequiredService<ITestExecutor>();
+
+        var first = await executor.RunAsync(TestContext.Current.CancellationToken);
+        var second = await executor.RunAsync(TestContext.Current.CancellationToken);
+
+        Assert.True(first.Success);
+        Assert.True(second.Success);
     }
 
-    public sealed class RuntimeSkippedSuite
+    [Fact]
+    public async Task Run_can_start_again_after_failed_results()
     {
-        [PulseCase] public void Skip_in_body() => throw new PulseSkipException("dynamic skip");
+        var services = new ServiceCollection();
+        services.AddPulse(p => p.AddSuite<FailingSuite>());
+        await using var sp = services.BuildServiceProvider();
+        var executor = sp.GetRequiredService<ITestExecutor>();
+
+        var first = await executor.RunAsync(TestContext.Current.CancellationToken);
+        var second = await executor.RunAsync(TestContext.Current.CancellationToken);
+
+        Assert.False(first.Success);
+        Assert.False(second.Success);
     }
 
-    public sealed class AsyncSuite
+    [Fact]
+    public async Task Run_can_start_again_after_suite_construction_failure()
     {
-        [PulseCase]
-        public async Task Async_fails()
+        var services = new ServiceCollection();
+        services.AddPulse(p => p.AddSuite<ConstructionFailingSuite>());
+        await using var sp = services.BuildServiceProvider();
+        var executor = sp.GetRequiredService<ITestExecutor>();
+
+        var first = await executor.RunAsync(TestContext.Current.CancellationToken);
+        var second = await executor.RunAsync(TestContext.Current.CancellationToken);
+
+        Assert.Contains(first.Results, r => r.TestName == "(suite construction)" && r.Outcome == TestOutcome.Failed);
+        Assert.Contains(second.Results, r => r.TestName == "(suite construction)" && r.Outcome == TestOutcome.Failed);
+    }
+
+    [Fact]
+    public async Task Run_can_start_again_after_cancelled_running_test()
+    {
+        CancellableLongRunningSuite.Reset();
+        var services = new ServiceCollection();
+        services.AddPulse(p =>
         {
-            await Task.Yield();
-            throw new InvalidOperationException("async-fail");
-        }
+            p.AddSuite<PassingSuite>();
+            p.AddSuite<CancellableLongRunningSuite>();
+        });
+        await using var sp = services.BuildServiceProvider();
+        using var cts = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var executor = sp.GetRequiredService<ITestExecutor>();
+
+        var firstRun = executor.RunAsync(cts.Token);
+        await CancellableLongRunningSuite.Started.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        await cts.CancelAsync();
+        var first = await firstRun;
+        var second = await executor.RunAsync(typeof(PassingSuite).FullName!, TestContext.Current.CancellationToken);
+
+        Assert.False(first.Success);
+        Assert.True(second.Success);
     }
 
-    public sealed class MatrixSuite
-    {
-        [PulseMatrix]
-        [PulseRow(390)]
-        [PulseRow(768)]
-        [PulseRow(1920)]
-        public void Width_is_positive(int width) => Assert.True(width > 0);
-    }
-
-    public interface ICounter { int Value { get; } void Increment(); }
-    public sealed class Counter : ICounter
-    {
-        public int Value { get; private set; }
-        public void Increment() => Value++;
-    }
-
-    public sealed class DependencySuite
-    {
-        private readonly ICounter _counter;
-        public DependencySuite(ICounter counter) { _counter = counter; }
-        [PulseCase] public void Counts() { _counter.Increment(); Assert.Equal(1, _counter.Value); }
-    }
 }

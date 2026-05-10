@@ -8,6 +8,12 @@ namespace Circuids.Pulse;
 public sealed record TestRunReport
 {
     /// <summary>
+    /// The report schema identifier. This value changes only when the JSON contract needs a new
+    /// compatibility boundary; v1 reports use <c>"pulse/v1"</c>.
+    /// </summary>
+    public string Schema { get; init; } = "pulse/v1";
+
+    /// <summary>
     /// The freeform consumer-supplied label set via <see cref="PulseBuilder.AssignedPlatform"/>.
     /// If unset, this is the literal string <c>"(unassigned)"</c>. Pulse does not interpret it.
     /// </summary>
@@ -21,6 +27,11 @@ public sealed record TestRunReport
 
     /// <summary>One entry per executed test (or one entry per matrix row).</summary>
     public required IReadOnlyList<TestResult> Results { get; init; }
+
+    /// <summary>
+    /// Total elapsed time for the full Pulse run, including runner setup and report construction.
+    /// </summary>
+    public TimeSpan Duration { get; init; }
 
     /// <summary>Total number of tests run.</summary>
     public int Total => Results.Count;

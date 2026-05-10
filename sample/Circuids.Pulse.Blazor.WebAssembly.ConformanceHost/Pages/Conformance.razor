@@ -1,0 +1,128 @@
+@page "/"
+@page "/conformance"
+@using System.Text.Json
+@using Circuids.Pulse
+@inject ITestExecutor Executor
+
+<PageTitle>Conformance</PageTitle>
+
+<h1>Pulse Conformance</h1>
+
+<p>
+    Runs the Pulse test suites registered in <code>Program.cs</code> inside the live WebAssembly
+    runtime — using the real DI graph and the real platform services this app is using right now.
+</p>
+
+<button class="btn btn-primary" @onclick="RunAsync" disabled="@_running">
+    @(_running ? "Running…" : _report is null ? "Run conformance" : "Re-run")
+</button>
+
+@if (_report is not null)
+{
+    <hr />
+    <h3>
+        @if (_report.Success)
+        {
+            <span class="badge bg-success">PASS</span>
+        }
+        else
+        {
+            <span class="badge bg-danger">FAIL</span>
+        }
+        <span class="ms-2">
+            @_report.Total total · @_report.Passed passed · @_report.Failed failed · @_report.Skipped skipped
+        </span>
+    </h3>
+
+    <dl class="row">
+        <dt class="col-sm-3">Assigned platform</dt>
+        <dd class="col-sm-9"><code>@_report.AssignedPlatform</code></dd>
+
+        <dt class="col-sm-3">Framework</dt>
+        <dd class="col-sm-9"><code>@_report.RuntimeEnvironment.FrameworkDescription</code></dd>
+
+        <dt class="col-sm-3">Runtime ID</dt>
+        <dd class="col-sm-9"><code>@_report.RuntimeEnvironment.RuntimeIdentifier</code></dd>
+
+        <dt class="col-sm-3">OS</dt>
+        <dd class="col-sm-9"><code>@_report.RuntimeEnvironment.OSDescription</code></dd>
+
+        <dt class="col-sm-3">Process arch</dt>
+        <dd class="col-sm-9"><code>@_report.RuntimeEnvironment.ProcessArchitecture</code></dd>
+
+        <dt class="col-sm-3">Timestamp (UTC)</dt>
+        <dd class="col-sm-9"><code>@_report.Timestamp.ToString("u")</code></dd>
+    </dl>
+
+    <table class="table table-sm">
+        <thead>
+            <tr>
+                <th>Outcome</th>
+                <th>Suite</th>
+                <th>Test</th>
+                <th>Duration</th>
+                <th>Message</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var r in _report.Results)
+            {
+                <tr class="@RowClass(r.Outcome)">
+                    <td><span class="badge @BadgeClass(r.Outcome)">@r.Outcome</span></td>
+                    <td><code>@ShortSuite(r.SuiteName)</code></td>
+                    <td>@r.TestName</td>
+                    <td>@r.Duration.TotalMilliseconds.ToString("0") ms</td>
+                    <td>@r.Message</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+
+    <details>
+        <summary>Raw JSON report</summary>
+        <pre style="white-space: pre-wrap;">@_reportJson</pre>
+    </details>
+}
+
+@code {
+    private TestRunReport? _report;
+    private string? _reportJson;
+    private bool _running;
+
+    private async Task RunAsync()
+    {
+        _running = true;
+        try
+        {
+            _report = await Executor.RunAsync();
+            _reportJson = JsonSerializer.Serialize(
+                _report,
+                PulseJsonContext.Default.TestRunReport);
+        }
+        finally
+        {
+            _running = false;
+        }
+    }
+
+    private static string ShortSuite(string fullName)
+    {
+        var idx = fullName.LastIndexOf('.');
+        return idx >= 0 ? fullName[(idx + 1)..] : fullName;
+    }
+
+    private static string RowClass(TestOutcome o) => o switch
+    {
+        TestOutcome.Failed => "table-danger",
+        TestOutcome.Skipped => "table-warning",
+        _ => "",
+    };
+
+    private static string BadgeClass(TestOutcome o) => o switch
+    {
+        TestOutcome.Passed => "bg-success",
+        TestOutcome.Failed => "bg-danger",
+        TestOutcome.Skipped => "bg-warning text-dark",
+        _ => "bg-secondary",
+    };
+}

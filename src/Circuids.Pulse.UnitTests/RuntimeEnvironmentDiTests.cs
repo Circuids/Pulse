@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.RuntimeEnvironmentDi;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -37,13 +39,4 @@ public sealed class RuntimeEnvironmentDiTests
         Assert.Same(diInstance, report.RuntimeEnvironment);
     }
 
-    private sealed class InjectingSuite
-    {
-        public static RuntimeEnvironment? Captured;
-        private readonly RuntimeEnvironment _env;
-        public InjectingSuite(RuntimeEnvironment env) => _env = env;
-
-        [PulseCase]
-        public void Captures_environment() => Captured = _env;
-    }
 }

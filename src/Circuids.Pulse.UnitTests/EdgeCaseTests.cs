@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.EdgeCases;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -204,77 +206,4 @@ public sealed class EdgeCaseTests
         Assert.Equal(TestOutcome.Passed, r.Outcome);
     }
 
-    public sealed class PassSuite
-    {
-        [PulseCase] public void Ok() { }
-    }
-
-    public sealed class CancelTriggerSuite
-    {
-        private readonly CancellationTokenSource _cts;
-        public CancelTriggerSuite(CancellationTokenSource cts) { _cts = cts; }
-
-        [PulseCase]
-        public void Cancels_after_running() => _cts.Cancel();
-    }
-
-    public sealed class SecondSuite
-    {
-        public static bool WasInvoked;
-
-        [PulseCase] public void Should_not_run() => WasInvoked = true;
-    }
-
-    public sealed class TwoMatrixMethodsSuite
-    {
-        [PulseMatrix]
-        [PulseRow(1)]
-        [PulseRow(2)]
-        [PulseRow(3)]
-        public void Width(int w) => Assert.True(w > 0);
-
-        [PulseMatrix]
-        [PulseRow(10)]
-        [PulseRow(20)]
-        [PulseRow(30)]
-        public void Height(int h) => Assert.True(h > 0);
-    }
-
-    public sealed class SyncValueTaskSuite
-    {
-        [PulseCase]
-        public ValueTask Sync_complete() => ValueTask.CompletedTask;
-    }
-
-    public sealed class DeclarativeSkipSuite
-    {
-        [PulseCase(Skip = "not yet")] public void S() { }
-    }
-
-    public sealed class CaseWithStrayRowSuite
-    {
-        [PulseCase]
-        [PulseRow(1)] // Stray — should be ignored because the method is a Case, not a Matrix.
-        public void Plain_case() { }
-    }
-
-    public sealed class EmptySkipReasonSuite
-    {
-        [PulseCase(Skip = "")] public void Empty_skip() { }
-    }
-
-    public interface IMarker { string Value { get; } }
-    public sealed class Marker : IMarker
-    {
-        public Marker(string v) { Value = v; }
-        public string Value { get; }
-    }
-
-    public sealed class MarkerSuite
-    {
-        private readonly IMarker _m;
-        public MarkerSuite(IMarker m) { _m = m; }
-
-        [PulseCase] public void Has_marker() => Assert.Equal("marker-value", _m.Value);
-    }
 }

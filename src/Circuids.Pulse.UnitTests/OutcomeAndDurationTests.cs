@@ -1,3 +1,5 @@
+using Circuids.Pulse.UnitTests.TestSuites.OutcomeAndDuration;
+
 namespace Circuids.Pulse.UnitTests;
 
 /// <summary>
@@ -48,6 +50,15 @@ public sealed class OutcomeAndDurationTests
         Assert.Equal(TestOutcome.Passed, r.Outcome);
         // 30ms sleep — be generous to absorb CI scheduling jitter.
         Assert.True(r.Duration > TimeSpan.Zero, $"Duration was {r.Duration}");
+        Assert.True(report.Duration >= r.Duration, $"Report duration {report.Duration} was shorter than test duration {r.Duration}.");
+    }
+
+    [Fact]
+    public async Task Report_duration_is_captured_for_full_run()
+    {
+        var report = await RunAsync(p => p.AddSuite<SlowSuite>());
+
+        Assert.True(report.Duration > TimeSpan.Zero, $"Report duration was {report.Duration}.");
     }
 
     [Fact]
@@ -61,6 +72,7 @@ public sealed class OutcomeAndDurationTests
         Assert.Equal(0, DeclarativeSkipSuite.Counter);
         // Skipped tests should report Duration.Zero (work was never performed).
         Assert.Equal(TimeSpan.Zero, r.Duration);
+        Assert.True(report.Duration > TimeSpan.Zero, $"Report duration was {report.Duration}.");
     }
 
     [Fact]
@@ -113,52 +125,4 @@ public sealed class OutcomeAndDurationTests
         Assert.Equal(TestOutcome.Failed, r.Outcome);
     }
 
-    public sealed class ValueTaskSuite
-    {
-        [PulseCase]
-        public async ValueTask Vt_passes()
-        {
-            await Task.Yield();
-        }
-
-        [PulseCase]
-        public ValueTask Vt_fails() =>
-            ValueTask.FromException(new InvalidOperationException("vt-fail"));
-    }
-
-    public sealed class SyncFailureSuite
-    {
-        // Sync throw inside a reflected invoke wraps in TargetInvocationException — Pulse must
-        // unwrap so consumers see the real message.
-        [PulseCase]
-        public void Throws_synchronously() => throw new InvalidOperationException("real-message");
-    }
-
-    public sealed class SlowSuite
-    {
-        [PulseCase]
-        public async Task Sleeps_briefly() => await Task.Delay(30);
-    }
-
-    public sealed class DeclarativeSkipSuite
-    {
-        public static int Counter;
-
-        [PulseCase(Skip = "wip")]
-        public void Should_not_run() => Counter++;
-    }
-
-    public sealed class PassSuite { [PulseCase] public void Ok() { } }
-    public sealed class FailSuite { [PulseCase] public void Bad() => throw new Exception("nope"); }
-    public sealed class SkipSuite
-    {
-        [PulseCase] public void S() => throw new PulseSkipException("nope");
-    }
-
-    public sealed class TypeMismatchSuite
-    {
-        [PulseMatrix]
-        [PulseRow("not-an-int")]
-        public void Expects_int(int n) => Assert.True(n > 0);
-    }
 }

@@ -1,4 +1,5 @@
 using System.Text.Json;
+using Circuids.Pulse.UnitTests.TestSuites.Serialization;
 
 namespace Circuids.Pulse.UnitTests;
 
@@ -17,14 +18,18 @@ public sealed class ReportSerializationTests
         var report = await sp.GetRequiredService<ITestExecutor>().RunAsync(TestContext.Current.CancellationToken);
 
         var json = JsonSerializer.Serialize(report, PulseJsonContext.Default.TestRunReport);
+        Assert.Contains("\"schema\":\"pulse/v1\"", json);
         Assert.Contains("\"assignedPlatform\":\"RoundTrip\"", json);
         Assert.Contains("\"runtimeEnvironment\"", json);
+        Assert.Contains("\"duration\"", json);
         Assert.Contains("\"results\"", json);
 
         var deserialized = JsonSerializer.Deserialize(json, PulseJsonContext.Default.TestRunReport);
         Assert.NotNull(deserialized);
+        Assert.Equal("pulse/v1", deserialized!.Schema);
         Assert.Equal("RoundTrip", deserialized!.AssignedPlatform);
         Assert.Equal(report.Total, deserialized.Total);
+        Assert.Equal(report.Duration, deserialized.Duration);
     }
 
     [Fact]
@@ -40,8 +45,4 @@ public sealed class ReportSerializationTests
         Assert.True(report.RuntimeEnvironment.ProcessorCount > 0);
     }
 
-    public sealed class TinySuite
-    {
-        [PulseCase] public void Ok() { }
-    }
 }

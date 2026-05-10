@@ -25,6 +25,7 @@ public static class PulseServiceCollectionExtensions
 
         services.TryAddSingleton(builder);
         services.TryAddSingleton(RuntimeEnvironmentProbe.Capture());
+        services.TryAddSingleton<PulseRunCoordinator>();
         services.TryAddScoped<ITestExecutor, TestExecutor>();
         return services;
     }
