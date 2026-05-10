@@ -15,11 +15,52 @@ Run tests inside your real app, not a test host.
 
 Pulse runs your tests inside the real app so you can verify behavior where it actually matters: in the runtime your users get.
 
-It is a slim, embeddable test runner for .NET host applications: Blazor, .NET MAUI, WPF, WinForms, Avalonia, Uno, console hosts, or anything that boots an `IServiceProvider`. Pulse executes `[PulseCase]` and `[PulseMatrix]` suites in-process with the consumer's real DI graph, real host services, and real platform APIs, then returns a strongly typed `TestRunReport` you can render, serialize, post, or store however you like.
+It is a slim, embeddable test runner for .NET host applications: Blazor, .NET MAUI, WPF, WinForms, Avalonia, Uno, console hosts, or anything that boots an `IServiceProvider`. Pulse executes `[PulseCase]` and `[PulseMatrix]` suites in-process with the consumer's real DI graph, host services, and platform APIs, then returns a strongly typed `TestRunReport` you can render, serialize, post, or store however you like.
 
 Pulse runs next to `dotnet test`, never instead of it. Pulse conformance tests are an extra verification layer, not a replacement for unit, integration, UI, end-to-end, or other existing test types. Unit tests prove your abstraction is internally consistent. Pulse proves the same boundary behavior inside the runtime that ships to users.
 
 > **Status:** v1 preview (`1.0.0-preview1`). This preview is intended for real project adoption and production conformance pilots while the .NET community reviews the architecture and suggests improvements before stable v1. The public API is intentionally small, and the JSON shape of `TestRunReport` is the stability contract. Report changes are additive.
+
+## Why Pulse Exists
+
+Some failures only appear inside the real runtime host:
+
+- incorrect DI registration in the actual app host
+- runtime integration mismatches across platforms
+- platform-specific service behavior
+- dispatcher and thread-affinity issues
+- `IJSRuntime`, MAUI, WPF, or other host-binding integration issues
+- `HttpClient` and other runtime configuration differences between fakes and the real host
+
+Pulse validates behavior where the application actually runs, using the real DI container, runtime services, and platform integrations.
+
+Pulse is especially useful for reusable libraries and framework-level components that need to behave consistently across multiple application hosts: runtime abstractions, storage and auth integrations, dispatcher abstractions, platform services, Blazor and MAUI integrations, and other host-bound infrastructure.
+
+## Where Pulse Fits
+
+| Tool | Primary focus |
+|---|---|
+| xUnit / NUnit / MSTest | Isolated logic and integration testing. |
+| WebApplicationFactory | ASP.NET Core host testing in a synthetic test host. |
+| Playwright / Selenium | Browser and UI automation. |
+| XHarness / DeviceRunners | Launching tests on platforms and devices. |
+| Pulse | Runtime validation inside the real application host. |
+
+Pulse complements existing testing tools rather than replacing them. A typical layering looks like this:
+
+```text
+XHarness / DeviceRunners
+ └─ launches the platform or device
+
+Application Host (Blazor, MAUI, WPF, WinForms, …)
+ ├─ DI Container
+ ├─ Platform Services
+ ├─ Runtime Integrations
+ └─ Pulse
+      └─ runtime validation inside the running host
+```
+
+Pulse is not a UI automation framework, a Playwright or Selenium replacement, a device runner, an XHarness or DeviceRunners replacement, or a replacement for xUnit, NUnit, or MSTest.
 
 ## Install
 
@@ -90,7 +131,7 @@ var report = await Executor.RunAsync();
 
 Render the report in your app UI, write it to a file, post it to a dashboard, or fail a CI step after inspecting `report.Success`. Pulse is report-first: `RunAsync` returns a failed report for failed tests; it does not throw just because a test case failed.
 
-## Pulse Is Not A Test Project
+## Pulse In Your Test Strategy
 
 Pulse suites live inside your actual application. You do not run `dotnet test` on a Pulse host, and Pulse does not extend xUnit, NUnit, or MSTest.
 
