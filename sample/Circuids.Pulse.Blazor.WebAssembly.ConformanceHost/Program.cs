@@ -15,10 +15,10 @@ builder.Services.AddPulse(p =>
 {
     p.AssignedPlatform = "Blazor.WebAssembly";
     p.DefaultTestTimeout = TimeSpan.FromSeconds(10);
-    p.AddSuite<WebAssemblyHostSuite>();
-    p.AddSuite<HttpClientSuite>();
-    p.AddSuite<ViewportMatrixSuite>();
-    p.AddSuite<LifetimeAndTimeoutSuite>();
+    p.AddSuite<BrowserRuntimeBoundarySuite>();
+    p.AddSuite<HttpHostBoundarySuite>();
+    p.AddSuite<BrowserInteropBoundarySuite>();
+    p.AddSuite<BrowserStorageBoundarySuite>();
 });
 
 await builder.Build().RunAsync();
