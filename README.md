@@ -324,8 +324,11 @@ Pulse stays small on purpose:
 
 Reference consumers live under [`sample/`](sample/):
 
-- [`Circuids.Pulse.Blazor.WebAssembly.Sample`](sample/Circuids.Pulse.Blazor.WebAssembly.Sample/) runs suites inside a live WASM runtime and renders results at `/conformance`.
-- [`Circuids.Pulse.Maui.Sample`](sample/Circuids.Pulse.Maui.Sample/) runs suites inside the live MAUI host on Android, iOS, MacCatalyst, and Windows.
+- [`Circuids.Pulse.Blazor.WebAssembly.ConformanceHost`](sample/Circuids.Pulse.Blazor.WebAssembly.ConformanceHost/) runs suites inside a live WASM runtime and renders results at the app root.
+- [`Circuids.Pulse.Maui.ConformanceHost`](sample/Circuids.Pulse.Maui.ConformanceHost/) runs suites inside the live MAUI host on Android, iOS, MacCatalyst, and Windows.
+- [`Circuids.Pulse.WinForms.ConformanceHost`](sample/Circuids.Pulse.WinForms.ConformanceHost/) runs suites inside a real WinForms message loop.
+- [`Circuids.Pulse.WPF.ConformanceHost`](sample/Circuids.Pulse.WPF.ConformanceHost/) runs suites inside a real WPF dispatcher.
+- [`Circuids.Pulse.TestSupport`](sample/Circuids.Pulse.TestSupport/) contains pure shared specs used by the host-specific suites.
 
 Samples are copy-paste references, not packages. The host integration belongs to the consuming app.
 
