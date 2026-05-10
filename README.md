@@ -1,3 +1,14 @@
+<div align="center">
+  <img src="https://github.com/Circuids/Pulse/blob/master/images/cover_logo_min.jpg?raw=true" alt="Pulse logo" height="250" width="1000" />
+</div>
+
+<div align="center">
+
+[![NuGet](https://img.shields.io/nuget/v/Circuids.Pulse.svg)](https://nuget.org/packages/Circuids.Pulse/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://github.com/Circuids/Pulse/blob/master/LICENSE)
+
+</div>
+
 # Pulse
 
 Run tests inside your real app, not a test host.
