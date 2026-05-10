@@ -26,11 +26,10 @@ public static class MauiProgram
         {
             p.AssignedPlatform = "MAUI";
             p.DefaultTestTimeout = TimeSpan.FromSeconds(10);
-            p.AddSuite<MauiHostSuite>();
-            p.AddSuite<DispatcherSuite>();
-            p.AddSuite<PreferencesSuite>();
-            p.AddSuite<ViewportMatrixSuite>();
-            p.AddSuite<LifetimeAndTimeoutSuite>();
+            p.AddSuite<MauiRuntimeBoundarySuite>();
+            p.AddSuite<MauiDispatcherBoundarySuite>();
+            p.AddSuite<MauiDeviceBoundarySuite>();
+            p.AddSuite<MauiPreferencesBoundarySuite>();
         });
 
 #if DEBUG

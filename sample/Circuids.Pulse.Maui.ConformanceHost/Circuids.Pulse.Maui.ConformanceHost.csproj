@@ -72,6 +72,7 @@
 
 	<ItemGroup>
 		<ProjectReference Include="..\..\src\Circuids.Pulse\Circuids.Pulse.csproj" />
+		<ProjectReference Include="..\Circuids.Pulse.TestSupport\Circuids.Pulse.TestSupport.csproj" />
 	</ItemGroup>
 
 </Project>
