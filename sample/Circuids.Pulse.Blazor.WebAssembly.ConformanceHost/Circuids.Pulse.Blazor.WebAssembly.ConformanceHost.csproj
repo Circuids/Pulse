@@ -2,6 +2,7 @@
 
   <PropertyGroup>
     <TargetFramework>net10.0</TargetFramework>
+    <RootNamespace>Circuids.Pulse.Blazor.WebAssembly.Sample</RootNamespace>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <OverrideHtmlAssetPlaceholders>true</OverrideHtmlAssetPlaceholders>
@@ -15,6 +16,7 @@
 
   <ItemGroup>
     <ProjectReference Include="..\..\src\Circuids.Pulse\Circuids.Pulse.csproj" />
+    <ProjectReference Include="..\Circuids.Pulse.TestSupport\Circuids.Pulse.TestSupport.csproj" />
   </ItemGroup>
 
   <ItemGroup>
