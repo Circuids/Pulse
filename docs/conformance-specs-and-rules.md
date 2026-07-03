@@ -6,9 +6,26 @@ Runtime Conformance is defined in the [README](../README.md). If you have not re
 
 ---
 
+## Two Ways To Use Pulse
+
+Pulse supports two patterns. Choose based on whether the behavior needs to be proven across multiple runtimes.
+
+| Pattern | When to use | Where it lives |
+|---|---|---|
+| **Shared specification + adapters** | The same behavioral contract must hold against fakes (`dotnet test`) AND the real runtime (Pulse). | Specification in `*.TestSupport`; adapters in `*.Tests` and `*.ConformanceHost`. |
+| **Pulse-only suite** | The behavior has no useful fake equivalent — the validation demands the real host to be meaningful. | Directly in the host app or `*.ConformanceHost`. No shared spec needed. |
+
+**You do not need a shared specification to use Pulse.** A Pulse-only suite is a perfectly valid starting point. If you later discover the same behavior needs to be proven in `dotnet test` as well, extract a shared specification then.
+
+The rest of this document covers both patterns in detail. Pulse-only suites are covered in [their own section](#pulse-only-suites) at the end.
+
+---
+
 ## Specification Litmus Test
 
-Before writing a Runtime Specification, verify it passes this test:
+> **This test applies when deciding whether to create a *shared specification*.** If you are writing a Pulse-only suite, skip to the [Pulse-Only Suites](#pulse-only-suites) section.
+
+Before writing a shared Runtime Specification, verify it passes this test:
 
 | Question | Expected answer |
 |---|---|
@@ -19,7 +36,7 @@ Before writing a Runtime Specification, verify it passes this test:
 | Does the specification avoid **host-specific assumptions**? | Yes |
 | Would a unit test already prove this behavior? | **No** |
 
-If three or more answers are wrong, this probably should not become a Runtime Specification.
+If three or more answers are wrong, this probably should not become a shared Runtime Specification. Consider a Pulse-only suite instead, or keep it as a unit test.
 
 A Runtime Specification must describe **what** correct behavior looks like — not **how** a particular implementation achieves it. If the spec would need to change when you swap the underlying implementation, the spec is wrong.
 
