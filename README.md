@@ -83,7 +83,7 @@ The runtime — not Pulse — is the architectural boundary. Pulse is simply the
 Runtime Conformance validates three things:
 
 1. **Behavior** — Does the real runtime implementation behave as specified?
-2. **Contracts** — Does the implementation satisfy its interface contract under real conditions?
+2. **Contracts** — Does the implementation satisfy its contract under real conditions?
 3. **Runtime correctness** — Does the implementation work correctly when the platform is involved?
 
 It does **not** validate implementation details. The conformance target is the observable behavior at the boundary, not the internal wiring.
