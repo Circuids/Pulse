@@ -9,60 +9,88 @@
 
 </div>
 
+---
+
 # Pulse
 
-Run tests inside your real app, not a test host.
+**Pulse is the execution engine for Runtime Conformance.**
 
-Pulse runs your tests inside the real app so you can verify behavior where it actually matters: in the runtime your users get.
+It is a slim, embeddable test runner for .NET host applications — Blazor, .NET MAUI, WPF, WinForms, Avalonia, Uno, console hosts, and anything that boots an `IServiceProvider`. Pulse executes `[PulseCase]` and `[PulseMatrix]` suites in-process with the consumer's real DI graph, host services, and platform APIs, then returns a strongly-typed `TestRunReport`.
 
-It is a slim, embeddable test runner for .NET host applications: Blazor, .NET MAUI, WPF, WinForms, Avalonia, Uno, console hosts, or anything that boots an `IServiceProvider`. Pulse executes `[PulseCase]` and `[PulseMatrix]` suites in-process with the consumer's real DI graph, host services, and platform APIs, then returns a strongly typed `TestRunReport` you can render, serialize, post, or store however you like.
+> **Status:** v1 preview (`1.0.0-preview1`). The public API is intentionally small. The JSON shape of `TestRunReport` is the stability contract; changes are additive only.
 
-Pulse runs next to `dotnet test`, never instead of it. Pulse conformance tests are an extra verification layer, not a replacement for unit, integration, UI, end-to-end, or other existing test types. Unit tests prove your abstraction is internally consistent. Pulse proves the same boundary behavior inside the runtime that ships to users.
+## The Problem
 
-> **Status:** v1 preview (`1.0.0-preview1`). This preview is intended for real project adoption and production conformance pilots while the .NET community reviews the architecture and suggests improvements before stable v1. The public API is intentionally small, and the JSON shape of `TestRunReport` is the stability contract. Report changes are additive.
+Modern applications depend on runtime behavior that cannot be faithfully validated using mocks:
 
-## Why Pulse Exists
+- **localStorage**, **sessionStorage**, **IndexedDB** in the browser
+- **Windows DPAPI**, **Keychain**, **SecureStorage** on device
+- Platform lifecycle events: **suspend**, **resume**, **backgrounding**
+- **Network detection**, **connectivity changes**
+- **Dispatchers**, **message pumps**, **thread affinity**
+- **Browser APIs**, **platform notifications**
 
-Some failures only appear inside the real runtime host:
+These are real runtime concerns. A unit test with a fake `IJSRuntime` cannot tell you whether `localStorage` actually works in the real browser. A mocked `HttpClient` cannot tell you whether the host configured the base address correctly. A fake dispatcher cannot prove the real UI thread processes work in order.
 
-- incorrect DI registration in the actual app host
-- runtime integration mismatches across platforms
-- platform-specific service behavior
-- dispatcher and thread-affinity issues
-- `IJSRuntime`, MAUI, WPF, or other host-binding integration issues
-- `HttpClient` and other runtime configuration differences between fakes and the real host
+Runtime correctness demands runtime execution.
 
-Pulse validates behavior where the application actually runs, using the real DI container, runtime services, and platform integrations.
+## The Missing Testing Layer
 
-Pulse is especially useful for reusable libraries and framework-level components that need to behave consistently across multiple application hosts: runtime abstractions, storage and auth integrations, dispatcher abstractions, platform services, Blazor and MAUI integrations, and other host-bound infrastructure.
-
-## Where Pulse Fits
-
-| Tool | Primary focus |
-|---|---|
-| xUnit / NUnit / MSTest | Isolated logic and integration testing. |
-| WebApplicationFactory | ASP.NET Core host testing in a synthetic test host. |
-| Playwright / Selenium | Browser and UI automation. |
-| XHarness / DeviceRunners | Launching tests on platforms and devices. |
-| Pulse | Runtime validation inside the real application host. |
-
-Pulse complements existing testing tools rather than replacing them. A typical layering looks like this:
+The testing landscape has a structural gap:
 
 ```text
-XHarness / DeviceRunners
- └─ launches the platform or device
-
-Application Host (Blazor, MAUI, WPF, WinForms, …)
- ├─ DI Container
- ├─ Platform Services
- ├─ Runtime Integrations
- └─ Pulse
-      └─ runtime validation inside the running host
+Unit Tests
+  │  Validates deterministic logic in isolation using fakes and mocks.
+  │
+  ▼
+Integration Tests
+  │  Validates communication with external systems (databases, APIs, message queues).
+  │
+  ▼
+Runtime Conformance  ◀── Pulse lives here
+  │  Validates that real runtime implementations satisfy their behavioral contracts
+  │  under production conditions — using the real OS, browser, platform services,
+  │  lifecycle, storage, and host environment.
+  │
+  ▼
+End-to-End Tests
+     Validates complete user workflows from the outside.
 ```
 
-Pulse is not a UI automation framework, a Playwright or Selenium replacement, a device runner, an XHarness or DeviceRunners replacement, or a replacement for xUnit, NUnit, or MSTest.
+Each layer answers a distinct question:
 
-## Install
+| Layer | Question it answers |
+|---|---|
+| **Unit Tests** | Does this function produce the right output for a given input? |
+| **Integration Tests** | Does this system communicate correctly with its external dependencies? |
+| **Runtime Conformance** | Does this runtime implementation honor its behavioral contract in the real environment? |
+| **End-to-End Tests** | Does the user's workflow complete successfully from start to finish? |
+
+Unit tests validate deterministic code. Integration tests validate external communication. End-to-end tests validate user workflows. **Runtime Conformance validates that the platform itself behaves correctly under your abstractions.**
+
+## The Runtime Rule
+
+Determining whether a test belongs in Runtime Conformance comes down to a single architectural question:
+
+> Does validating this behavior require the **real runtime**, operating system, browser, platform service, lifecycle, storage implementation, or host environment?
+
+If the answer is yes, it belongs in Runtime Conformance.
+
+The runtime — not Pulse — is the architectural boundary. Pulse is simply the execution engine that makes it possible to run these validations inside the real app.
+
+## What Runtime Conformance Validates
+
+Runtime Conformance validates three things:
+
+1. **Behavior** — Does the real runtime implementation behave as specified?
+2. **Contracts** — Does the implementation satisfy its contract under real conditions?
+3. **Runtime correctness** — Does the implementation work correctly when the platform is involved?
+
+It does **not** validate implementation details. The conformance target is the observable behavior at the boundary, not the internal wiring.
+
+**Pulse executes specifications against real runtime implementations.** The specification describes *what* the behavior should be. Pulse proves it holds inside the real environment.
+
+## Quick Start
 
 ```pwsh
 dotnet add package Circuids.Pulse --version 1.0.0-preview1
@@ -70,18 +98,16 @@ dotnet add package Circuids.Pulse --version 1.0.0-preview1
 
 Targets `net8.0`, `net9.0`, and `net10.0`.
 
-Runtime dependencies:
+### Runtime dependencies
 
-| Dependency | Why it is there |
+| Dependency | Purpose |
 |---|---|
 | `Microsoft.Extensions.DependencyInjection.Abstractions` | Pulse resolves suites through the host service provider. |
 | `Microsoft.Testing.Platform` | Pulse hosts MTP in-process as the execution engine. |
 
 There is no `Microsoft.Testing.Platform.MSBuild` dependency. Pulse is hosted by your app, not discovered by `dotnet test` or Test Explorer.
 
-## Try Pulse In 5 Minutes
-
-Register Pulse with your host services:
+### 1. Register Pulse
 
 ```csharp
 builder.Services.AddPulse(p =>
@@ -92,7 +118,9 @@ builder.Services.AddPulse(p =>
 });
 ```
 
-Write a suite. Suites are plain classes resolved through the same `IServiceProvider` as the rest of your app:
+### 2. Write suites
+
+Suites are plain classes resolved through the same `IServiceProvider` as the rest of your app:
 
 ```csharp
 public sealed class HttpClientSuite
@@ -108,98 +136,51 @@ public sealed class HttpClientSuite
     public void HttpClient_has_an_absolute_base_address()
     {
         PulseAssert.NotNull(_http.BaseAddress, "BaseAddress must be configured.");
-        PulseAssert.True(_http.BaseAddress!.IsAbsoluteUri, $"Expected absolute URI, got {_http.BaseAddress}.");
+        PulseAssert.True(_http.BaseAddress!.IsAbsoluteUri,
+            $"Expected absolute URI, got {_http.BaseAddress}.");
     }
 
     [PulseCase(TimeoutMs = 5000)]
     public async Task GET_root_returns_success(CancellationToken ct)
     {
         using var response = await _http.GetAsync("", ct);
-        PulseAssert.True(response.IsSuccessStatusCode, $"Expected 2xx, got {(int)response.StatusCode}.");
+        PulseAssert.True(response.IsSuccessStatusCode,
+            $"Expected 2xx, got {(int)response.StatusCode}.");
     }
 }
 ```
 
-Run the suite from inside the running app:
+### 3. Run and inspect the report
 
 ```csharp
-@inject ITestExecutor Executor
+var report = await executor.RunAsync();
 
-var report = await Executor.RunAsync();
-// report.Success, report.Total, report.Failed, report.Results, report.RuntimeEnvironment
+Console.WriteLine(report.Success ? "All conformance tests passed." : "Failures detected.");
+// report.Total, report.Passed, report.Failed, report.Skipped, report.Results, report.RuntimeEnvironment
 ```
 
-Render the report in your app UI, write it to a file, post it to a dashboard, or fail a CI step after inspecting `report.Success`. Pulse is report-first: `RunAsync` returns a failed report for failed tests; it does not throw just because a test case failed.
+Pulse is report-first: `RunAsync` returns a failed report for failed tests. It does not throw because a test case failed.
 
-## Pulse In Your Test Strategy
+## Runner-Neutral Specifications
 
-Pulse suites live inside your actual application. You do not run `dotnet test` on a Pulse host, and Pulse does not extend xUnit, NUnit, or MSTest.
+The strongest Pulse pattern is: **write the behavior once, run it everywhere.**
 
-Think of Pulse conformance tests as a host-runtime layer in your existing test strategy. Keep your unit, integration, UI, end-to-end, and contract tests where they already provide value; add Pulse where the real app host, DI graph, or platform service is part of the behavior that must be proven.
+Specifications should depend only on:
 
-The typical product layout is:
+- Your product abstractions (interfaces, models)
+- The .NET BCL
+- Shared assertion helpers (or ordinary exceptions)
 
-```text
-MyProduct.App/                 # Blazor / MAUI / WPF / WinForms / etc.
-  Program.cs / MauiProgram.cs  # AddPulse(...) registered here
-  Conformance/                 # Pulse suites over real platform services
+Specifications should **never** depend on:
 
-MyProduct.Tests/               # ordinary dotnet test project
-  TokenStorageTests.cs         # adapter over fakes/in-memory implementations
+- Pulse
+- xUnit, NUnit, MSTest
+- DI containers
+- Mocking libraries
 
-MyProduct.TestSupport/         # optional pure support library
-  TokenStorageSpec.cs          # shared abstract spec, no test-framework attributes
-  Fakes/
-  Builders/
+This keeps the specification reusable across runners and test types.
 
-MyProduct.ConformanceHost/     # optional dedicated app host for Pulse runs
-  Conformance/                 # Pulse adapters over real app services
-```
-
-Use `*.TestSupport` for reusable specs, fakes, builders, and sample data. Use `*.Tests` for `dotnet test`. Use `*.ConformanceHost` when you want a dedicated real app host for Pulse instead of putting suites in the production app.
-
-For the detailed TestSupport/spec rules, see [Conformance Specs And Rules](docs/conformance-specs-and-rules.md).
-
-## When To Use Pulse
-
-| Use this | When you need to prove | Typical dependencies |
-|---|---|---|
-| `dotnet test` | Pure logic, contracts, error handling, serialization, fast feedback. | Fakes, mocks, in-memory stores, normal test frameworks. |
-| Pulse | Behavior at the boundary where the real host matters. | Real DI graph, real `IJSRuntime`, real MAUI services, real `HttpClient`, real platform APIs. |
-| Both | A reusable abstraction must behave the same over fakes and the real platform implementation. | Shared `*.TestSupport` spec plus thin adapters. |
-
-Pulse is additive. It does not eliminate mocks, replace existing test suites, or turn every behavior check into an in-app test. The conformance target should be real in a Pulse run; supporting dependencies can still be fake when appropriate.
-
-## A Failure Pulse Is Meant To Catch
-
-An ordinary unit test can prove your `IWeatherClient` handles a successful response from a fake `HttpMessageHandler`. That is useful, but it cannot prove the Blazor host actually registered `HttpClient.BaseAddress` correctly.
-
-```csharp
-public sealed class WeatherClientHostSuite
-{
-    private readonly HttpClient _http;
-
-    public WeatherClientHostSuite(HttpClient http)
-    {
-        _http = http;
-    }
-
-    [PulseCase]
-    public void Host_configured_HttpClient_base_address()
-    {
-        PulseAssert.NotNull(_http.BaseAddress, "The running host must configure HttpClient.BaseAddress.");
-        PulseAssert.True(_http.BaseAddress!.IsAbsoluteUri, "Relative requests must resolve in the real app.");
-    }
-}
-```
-
-If the fake-backed `dotnet test` passes but this Pulse case fails in the real host, Pulse is telling you something important: the abstraction is plausible, but the app wiring is wrong.
-
-## Shared Conformance Specs
-
-The strongest Pulse pattern is: write the behavior once, run it against fakes with `dotnet test`, then run the same behavior inside the real app with Pulse.
-
-The shared spec lives in a pure support library. It has no Pulse reference, no xUnit/NUnit/MSTest reference, no DI dependency, and no test attributes. It fails with ordinary BCL exceptions.
+### Shared spec (no runner dependency)
 
 ```csharp
 public abstract class TokenStorageSpec
@@ -221,7 +202,7 @@ public abstract class TokenStorageSpec
 }
 ```
 
-The `dotnet test` adapter chooses the fake runtime:
+### Unit test adapter (fake runtime)
 
 ```csharp
 public sealed class InMemoryTokenStorageTests : TokenStorageSpec
@@ -234,10 +215,10 @@ public sealed class InMemoryTokenStorageTests : TokenStorageSpec
 }
 ```
 
-The Pulse adapter chooses the real host implementation:
+### Pulse adapter (real runtime)
 
 ```csharp
-public sealed class BrowserTokenStorageSuite : TokenStorageSpec
+public sealed class BrowserTokenStorageSuite : TokenStorageSpec, IPulseLifetime
 {
     private readonly ITokenStorage _storage;
 
@@ -248,62 +229,88 @@ public sealed class BrowserTokenStorageSuite : TokenStorageSpec
 
     protected override ITokenStorage CreateStorage() => _storage;
 
+    public Task InitializeAsync(CancellationToken ct) => ClearKnownKeysAsync(ct);
+    public Task DisposeAsync(CancellationToken ct) => ClearKnownKeysAsync(ct);
+
     [PulseCase(TimeoutMs = 5000)]
     public Task Store_then_retrieve_returns_same_value(CancellationToken ct)
         => Store_then_retrieve_returns_same_value_core(ct);
 }
 ```
 
-**Specs define behavior. Adapters choose the runtime.**
+The same specification validates `ITokenStorage` against an in-memory fake in `dotnet test` and against real browser `localStorage` in Pulse. The spec never changes. **Specs define behavior. Adapters choose the runtime.**
 
-An interface-shaped spec can work as an alternate checklist when the body is tiny or each adapter should use its native assertion library, but the abstract implementation spec is the canonical v1 pattern because it keeps one behavior body shared across both runtimes.
+For the complete rulebook on shared specs, adapters, and boundary-focused matrices, see [Conformance Specs And Rules](docs/conformance-specs-and-rules.md).
 
-The full rulebook for shared specs, adapters, TestSupport, cleanup, and boundary-focused matrices lives in [Conformance Specs And Rules](docs/conformance-specs-and-rules.md).
+## Writing Suites
 
-## Writing Pulse Suites
-
-Use `[PulseCase]` for one test and `[PulseMatrix]` with `[PulseRow]` for parameterized rows. Every matrix row becomes its own `TestResult`.
+Use `[PulseCase]` for individual tests and `[PulseMatrix]` with `[PulseRow]` for parameterized rows. Every matrix row produces its own `TestResult`.
 
 ```csharp
-public sealed class ViewportMatrixSuite
+public sealed class BrowserStorageBoundarySuite : KeyValueStoreSpec, IPulseLifetime
 {
-    [PulseMatrix(DisplayName = "Aspect ratio classification")]
-    [PulseRow(390, 844, "portrait")]
-    [PulseRow(1920, 1080, "landscape")]
-    [PulseRow(768, 768, "square")]
-    public void Aspect_ratio_is_classified(int width, int height, string expected)
-    {
-        var actual = width > height ? "landscape"
-            : width < height ? "portrait"
-            : "square";
+    private readonly IJSRuntime _js;
 
-        PulseAssert.Equal(expected, actual, $"Classification for {width}x{height}.");
+    public BrowserStorageBoundarySuite(IJSRuntime js)
+    {
+        _js = js;
+    }
+
+    protected override IConformanceKeyValueStore CreateStore() => new BrowserLocalStorageStore(_js);
+
+    public Task InitializeAsync(CancellationToken ct) => ClearKnownKeysAsync(ct);
+    public Task DisposeAsync(CancellationToken ct) => ClearKnownKeysAsync(ct);
+
+    [PulseCase(TimeoutMs = 2000)]
+    public Task Set_then_get_round_trips_value(CancellationToken ct)
+        => Set_then_get_round_trips_value_core(ct);
+
+    [PulseMatrix(DisplayName = "localStorage batch round-trip", TimeoutMs = 3000)]
+    [PulseRow(1)]
+    [PulseRow(5)]
+    [PulseRow(20)]
+    public async Task Batch_round_trips_under_budget(int count, CancellationToken ct)
+    {
+        var store = CreateStore();
+        var keys = Enumerable.Range(0, count)
+            .Select(i => $"conformance.batch.{i}").ToArray();
+
+        try
+        {
+            foreach (var key in keys)
+            {
+                await store.SetAsync(key, key, ct);
+                PulseAssert.Equal(key, await store.GetAsync(key, ct),
+                    "localStorage must return the value just written.");
+            }
+        }
+        finally
+        {
+            foreach (var key in keys)
+                await store.RemoveAsync(key, CancellationToken.None);
+        }
     }
 }
 ```
 
-Use `PulseAssert` in Pulse-only suites and concrete Pulse adapter bodies. Shared `*.TestSupport` specs should stay runner-agnostic and throw ordinary exceptions instead.
+Use `PulseAssert` in Pulse-only suites and Pulse adapter bodies. Shared `*.TestSupport` specs stay runner-agnostic and throw ordinary BCL exceptions.
 
-## Execution Semantics
+### Execution semantics
 
 | Aspect | Behavior |
 |---|---|
-| Registration | Only explicitly registered suites run: `PulseBuilder.AddSuite<T>()` or factory overloads. No assembly scanning. |
-| Suite filter | `RunAsync(string suiteName)` matches the registered type's `Type.FullName` exactly. |
-| Order | Suites and tests run sequentially. Boundary tests share real host state, so Pulse does not parallelize. |
+| Registration | Only explicitly registered suites run. No assembly scanning. |
+| Suite filter | `RunAsync(string suiteName)` matches `Type.FullName` exactly. |
+| Order | Sequential. Boundary tests share real host state. |
 | Construction failure | Recorded as a failed `(suite construction)` result; later suites continue. |
-| Discovery failure | Recorded as a failed `(discovery)` result; constructed suites are still disposed. |
-| Initialization failure | Records `(suite InitializeAsync)`, skips discovered tests in that suite, tears down, then continues with the next suite. |
-| Test failure | The thrown exception becomes a failed `TestResult`; ordinary test failures do not make `RunAsync` throw. |
-| Runtime skip | Throw `PulseSkipException`, `PulseAssert.Skip(...)`, or xUnit's skip exception by name. |
-| Re-entrancy | One active run per Pulse registration/service provider. Concurrent runs throw `InvalidOperationException`. |
-| Cancellation | `RunAsync(ct)` is honored between tests. Mid-test deadlines require the test to accept and honor a trailing `CancellationToken`. |
-
-Timeouts are cooperative. `[PulseCase(TimeoutMs = 5000)]` or `PulseBuilder.DefaultTestTimeout` creates a linked token only when the test method declares a trailing `CancellationToken`. Pulse never aborts threads.
+| Test failure | The thrown exception becomes a failed `TestResult`. `RunAsync` does not throw. |
+| Runtime skip | Throw `PulseSkipException`, call `PulseAssert.Skip(...)`, or throw xUnit's skip exception by name. |
+| Cancellation | `RunAsync(ct)` is honored between tests. Mid-test deadlines require a trailing `CancellationToken`. |
+| Timeouts | Cooperative. Pulse creates a linked token when the method declares a trailing `CancellationToken`. No thread abort. |
 
 ## Report Contract
 
-`TestRunReport` is the integration contract for UIs, CI, and dashboards.
+`TestRunReport` is the integration contract for UIs, CI, and dashboards:
 
 ```csharp
 public sealed record TestRunReport
@@ -322,27 +329,76 @@ public sealed record TestRunReport
 }
 ```
 
-Serialize reports with the source-generated context:
+Serialize with the source-generated context:
 
 ```csharp
 var json = JsonSerializer.Serialize(report, PulseJsonContext.Default.TestRunReport);
 ```
 
-The report is additive-only. Future fields may appear, but existing fields keep their meaning for the `pulse/v1` schema.
+The report is additive-only. Future fields may appear; existing fields retain their meaning under the `pulse/v1` schema.
 
-## CI Trigger Patterns
+## What Runtime Conformance Is NOT
 
-Pulse does not ship a CLI, reporter framework, or upload sink. Automation should still start from inside the real host app.
+| Scenario | Test Type |
+|---|---|
+| Pure deterministic logic | Unit Test |
+| JSON serialization / deserialization | Unit Test |
+| Firebase Emulator | Integration Test |
+| SQLite in-memory database | Integration Test |
+| IndexedDB quota exhaustion | **Runtime Conformance** |
+| Windows DPAPI / Keychain | **Runtime Conformance** |
+| Android lifecycle (suspend / resume) | **Runtime Conformance** |
+| Browser `localStorage` round-trip | **Runtime Conformance** |
+| MAUI `Preferences.Default` on device | **Runtime Conformance** |
+| WinForms message pump dispatch | **Runtime Conformance** |
+| OAuth login flow | End-to-End |
+| Clicking buttons through the UI | End-to-End |
 
-Common host-owned patterns:
+The boundary is clear: if removing the real runtime makes the test meaningless, it is Runtime Conformance.
+
+## Pulse's Responsibility
+
+Pulse owns **runtime behavioral validation**. It is deliberately focused.
+
+Pulse intentionally does **not** attempt to become:
+
+- A unit test framework
+- An integration test framework
+- A device orchestration framework
+- A UI automation framework
+- A reporting or dashboarding system
+- A CLI runner
+
+Keeping this responsibility narrow is an architectural decision. Pulse complements `dotnet test`, xUnit, NUnit, Playwright, and XHarness — it does not compete with them.
+
+## Hosting Pulse
+
+Pulse suites live inside your actual application. The recommended project layout:
+
+```text
+MyProduct.App/                 # Blazor / MAUI / WPF / WinForms
+  Program.cs / MauiProgram.cs  # AddPulse(...) registered here
+  Conformance/                 # Pulse suites over real platform services
+
+MyProduct.Tests/               # dotnet test project
+  TokenStorageTests.cs         # adapter over fakes
+
+MyProduct.TestSupport/         # pure support library
+  TokenStorageSpec.cs          # shared abstract spec
+  Fakes/
+  Builders/
+
+MyProduct.ConformanceHost/     # optional dedicated app host for Pulse
+  Conformance/
+```
+
+Pulse does not ship a CLI or reporter framework. Automation starts from inside the real host app. Common patterns:
 
 | Pattern | Shape |
 |---|---|
-| Diagnostic endpoint | Map a protected endpoint that calls `ITestExecutor.RunAsync()` and returns serialized JSON. |
-| Startup flag | If a config value or command-line flag is set, run Pulse at startup, emit JSON, then exit or mark the host unhealthy. |
-| Dedicated conformance host | Boot a small `*.ConformanceHost` app that registers the same platform services and runs Pulse for CI. |
-
-Minimal endpoint example:
+| Diagnostic endpoint | Expose a protected endpoint that calls `ITestExecutor.RunAsync()` and returns serialized JSON. |
+| Startup flag | Run Pulse at startup with a config flag, emit JSON, then exit or mark the host unhealthy. |
+| Dedicated conformance host | Boot a small `*.ConformanceHost` that registers the same platform services and runs Pulse for CI. |
 
 ```csharp
 app.MapPost("/_pulse/run", async (ITestExecutor executor, CancellationToken ct) =>
@@ -353,55 +409,76 @@ app.MapPost("/_pulse/run", async (ITestExecutor executor, CancellationToken ct) 
 });
 ```
 
-Keep endpoint auth, upload retries, redaction, and storage policy in your app. Pulse provides the stable report; the host owns transport.
+Authentication, retries, and storage policy belong to your app. Pulse provides the stable report; the host owns transport.
 
-## What Is In The Box
+## What's In The Box
 
-- `[PulseCase]`, `[PulseMatrix]`, and `[PulseRow]` for explicit suite discovery.
-- `PulseAssert`, a focused assertion library with consistent failure messages and no fluent surface.
-- `IPulseLifetime` for per-suite `InitializeAsync` / `DisposeAsync`; `IDisposable` and `IAsyncDisposable` are also honored.
-- Cooperative per-test timeout/cancellation through trailing `CancellationToken` injection.
-- `TestRunReport`, `TestResult`, `TestOutcome`, and `RuntimeEnvironment` models.
-- `PulseJsonContext` for source-generated `System.Text.Json` serialization.
-- `RuntimeEnvironment` registered as a DI singleton so suites can inject it directly.
+- `[PulseCase]`, `[PulseMatrix]`, and `[PulseRow]` for explicit suite discovery
+- `PulseAssert` — a focused assertion library with consistent failure messages
+- `IPulseLifetime` for per-suite `InitializeAsync` / `DisposeAsync`; `IDisposable` and `IAsyncDisposable` also honored
+- Cooperative per-test timeout/cancellation through trailing `CancellationToken` injection
+- `TestRunReport`, `TestResult`, `TestOutcome`, and `RuntimeEnvironment` models
+- `PulseJsonContext` for source-generated `System.Text.Json` serialization
+- `RuntimeEnvironment` registered as a DI singleton
 
-## What Is Not In The Box
+## What's Not In The Box
 
-Pulse stays small on purpose:
+Pulse stays small by design:
 
-- No `Circuids.Pulse.Blazor`, `.Maui`, `.Wpf`, `.WinForms`, `.Avalonia`, `.Uno`, `.Reporters`, `.TestExplorer`, or `.Specs` package.
-- No Test Explorer integration. Pulse tests only make sense inside the real app host.
-- No reporter framework. Serialize `TestRunReport` directly.
-- No official conformance helper package. Use your own `*.TestSupport` library for reusable specs and fakes.
-- No mocking framework, fixture container, parallel execution, auto-retry, member-data row source, test ordering attributes, or fluent assertion DSL.
-- No `Microsoft.Testing.Platform.MSBuild` in the runtime closure.
+- No `Circuids.Pulse.Blazor`, `.Maui`, `.Wpf`, `.WinForms`, `.Avalonia`, `.Uno`, `.Reporters`, or `.TestExplorer` packages
+- No Test Explorer integration — Pulse tests only make sense inside the real app host
+- No reporter framework — serialize `TestRunReport` directly
+- No mocking framework, fixture container, parallel execution, auto-retry, member-data row source, test ordering attributes, or fluent assertion DSL
+- No `Microsoft.Testing.Platform.MSBuild`
+
+## A Failure Pulse Is Meant To Catch
+
+A unit test can prove your `IWeatherClient` handles a successful response from a fake `HttpMessageHandler`. That is useful, but it cannot prove the Blazor host registered `HttpClient.BaseAddress` correctly:
+
+```csharp
+public sealed class WeatherClientHostSuite
+{
+    private readonly HttpClient _http;
+
+    public WeatherClientHostSuite(HttpClient http)
+    {
+        _http = http;
+    }
+
+    [PulseCase]
+    public void Host_configured_HttpClient_base_address()
+    {
+        PulseAssert.NotNull(_http.BaseAddress,
+            "The running host must configure HttpClient.BaseAddress.");
+        PulseAssert.True(_http.BaseAddress!.IsAbsoluteUri,
+            "Relative requests must resolve in the real app.");
+    }
+}
+```
+
+If the fake-backed unit test passes but this Pulse case fails in the real host, Pulse is telling you something important: the abstraction is plausible, but the app wiring is broken.
 
 ## Samples
 
-Reference consumers live under [`sample/`](sample/):
+Reference consumers under [`sample/`](sample/):
 
-- [`Circuids.Pulse.Blazor.WebAssembly.ConformanceHost`](sample/Circuids.Pulse.Blazor.WebAssembly.ConformanceHost/) runs suites inside a live WASM runtime and renders results at the app root.
-- [`Circuids.Pulse.Maui.ConformanceHost`](sample/Circuids.Pulse.Maui.ConformanceHost/) runs suites inside the live MAUI host on Android, iOS, MacCatalyst, and Windows.
-- [`Circuids.Pulse.WinForms.ConformanceHost`](sample/Circuids.Pulse.WinForms.ConformanceHost/) runs suites inside a real WinForms message loop.
-- [`Circuids.Pulse.WPF.ConformanceHost`](sample/Circuids.Pulse.WPF.ConformanceHost/) runs suites inside a real WPF dispatcher.
-- [`Circuids.Pulse.TestSupport`](sample/Circuids.Pulse.TestSupport/) contains pure shared specs used by the host-specific suites.
+- [`Circuids.Pulse.Blazor.WebAssembly.ConformanceHost`](sample/Circuids.Pulse.Blazor.WebAssembly.ConformanceHost/) — suites inside a live WASM runtime
+- [`Circuids.Pulse.Maui.ConformanceHost`](sample/Circuids.Pulse.Maui.ConformanceHost/) — suites inside a live MAUI host on Android, iOS, MacCatalyst, and Windows
+- [`Circuids.Pulse.WinForms.ConformanceHost`](sample/Circuids.Pulse.WinForms.ConformanceHost/) — suites inside a real WinForms message loop
+- [`Circuids.Pulse.WPF.ConformanceHost`](sample/Circuids.Pulse.WPF.ConformanceHost/) — suites inside a real WPF dispatcher
+- [`Circuids.Pulse.TestSupport`](sample/Circuids.Pulse.TestSupport/) — pure shared specs used by host-specific suites
 
-Samples are copy-paste references, not packages. The host integration belongs to the consuming app.
+Samples are copy-paste references, not packages. Host integration belongs to the consuming app.
 
 ## Troubleshooting
 
 | Symptom | What to check |
 |---|---|
-| Test Explorer does not show Pulse tests. | Expected. Pulse is not a `dotnet test` project and does not integrate with Test Explorer. |
-| A timeout did not stop a hanging test. | The method must accept a trailing `CancellationToken`, and the body must pass/observe that token. |
-| A debugger pauses on `PulseAssert` failure. | Assertion failures are real exceptions caught by Pulse. Debugger break behavior depends on the host/debugger settings. Normal sweeps should run without a debugger attached. |
-| `RunAsync(string suiteName)` returns an empty report. | Pass the suite type's exact `FullName`; matching is ordinal and case-sensitive. |
-| Shared specs need assertions. | In `*.TestSupport`, throw ordinary BCL exceptions. Use `PulseAssert` only in Pulse suites or concrete Pulse adapter bodies. |
-| A Pulse suite needs fake dependencies. | Keep the conformance target real. Non-target dependencies can be fake or stubbed when that keeps the boundary under test focused. |
-
-## Trust Boundaries
-
-Pulse does not modify your test runner, require a custom host, scan assemblies, create a UI, or interfere with existing `dotnet test` projects. It runs only the suites you explicitly register from inside the host application you already control.
+| Test Explorer does not show Pulse tests | Expected. Pulse is not a `dotnet test` project. |
+| A timeout did not stop a hanging test | The method must accept a trailing `CancellationToken` and observe it. |
+| `RunAsync(string suiteName)` returns an empty report | Pass the suite type's exact `FullName`; matching is ordinal and case-sensitive. |
+| Shared specs need assertions | In `*.TestSupport`, throw ordinary BCL exceptions. Use `PulseAssert` only in Pulse suites or adapter bodies. |
+| A Pulse suite needs fake dependencies | Keep the conformance target real. Non-target dependencies can be fake. |
 
 ## Contributing
 
@@ -409,7 +486,7 @@ Issues, discussions, and pull requests are welcome on [github.com/Circuids/Pulse
 
 If Pulse saves you time, you can support continued work through GitHub Sponsors:
 
-[**Sponsor Circuids on GitHub ->**](https://github.com/sponsors/Circuids)
+[**Sponsor Circuids on GitHub →**](https://github.com/sponsors/Circuids)
 
 ## License
 
