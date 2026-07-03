@@ -19,7 +19,6 @@ Pulse supports two patterns. Choose based on whether the behavior needs to be pr
 
 The rest of this document covers both patterns in detail. Pulse-only suites are covered in [their own section](#pulse-only-suites) at the end.
 
----
 
 ## Specification Litmus Test
 
@@ -40,7 +39,6 @@ If three or more answers are wrong, this probably should not become a shared Run
 
 A Runtime Specification must describe **what** correct behavior looks like — not **how** a particular implementation achieves it. If the spec would need to change when you swap the underlying implementation, the spec is wrong.
 
----
 
 ## The Separation
 
@@ -58,7 +56,6 @@ Immutable across platforms           Platform-specific; one per host
 
 Specifications define behavior. Adapters choose the runtime.
 
----
 
 ## How To Write A Specification
 
@@ -124,7 +121,6 @@ A specification that references Pulse cannot be executed by `dotnet test`. A spe
 
 The specification's only job is to state: **when this abstraction is used correctly, it must behave in the following way.** Nothing else.
 
----
 
 ## How To Write Adapters
 
@@ -198,7 +194,6 @@ public sealed class BrowserStorageBoundarySuite : KeyValueStoreSpec, IPulseLifet
 | Manage lifecycle | — | Constructor / Dispose | `IPulseLifetime` |
 | Clean up real state | Shared helpers | N/A (fakes are ephemeral) | `try/finally` + `IPulseLifetime` |
 
----
 
 ## The One Conformance Rule
 
@@ -208,7 +203,6 @@ If the specification validates `IConformanceKeyValueStore`, the Pulse adapter mu
 
 Non-target dependencies may be fake. Faking logging, time, telemetry, configuration, or unrelated network calls is acceptable when it keeps the conformance target focused. **The conformance target is the boundary.**
 
----
 
 ## Project Layout
 
@@ -250,7 +244,6 @@ MyProduct.ConformanceHost/      # Pulse application host
 - DI references
 - Platform-specific implementations (those belong in the conformance host)
 
----
 
 ## Anti-Patterns
 
@@ -334,7 +327,6 @@ public Task Set_then_get_round_trips_value(CancellationToken ct)
 
 Adapters delegate to `*_core` methods. If a platform genuinely needs different behavior, the specification itself should cover that behavior — not the adapter.
 
----
 
 ## Pulse-Only Suites
 
@@ -383,7 +375,6 @@ Pulse-only suites are appropriate for:
 
 Use `PulseAssert` in these suites — they live entirely inside the Pulse host and have no reuse requirement.
 
----
 
 ## Matrices
 
@@ -421,7 +412,6 @@ These should be unit tests, not Runtime Conformance:
 
 If removing the row would make no difference to a `dotnet test` run of the same logic, it should not be a matrix.
 
----
 
 ## State And Cleanup
 
@@ -471,7 +461,6 @@ protected async Task Set_then_get_round_trips_value_core(CancellationToken ct = 
 
 Prefer suite-wide cleanup via `IPulseLifetime` for shared keys used across tests, and per-test cleanup for values that only exist within a single test.
 
----
 
 ## Naming Conventions
 
@@ -501,7 +490,6 @@ Name the unit test adapter for the **fake implementation**:
 
 Avoid names that describe only a mechanism (`AsyncSuite`, `TimeoutSuite`) unless the mechanism itself is the boundary being validated.
 
----
 
 ## Specification Evolution
 
@@ -521,7 +509,6 @@ Runtime Specifications should evolve as the system matures. The direction is: **
 
 The specification should become stronger with each addition, but never narrower. A specification that only works on one platform is not a specification — it is a platform test.
 
----
 
 ## Quick Checklist
 
