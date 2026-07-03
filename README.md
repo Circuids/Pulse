@@ -19,8 +19,6 @@ It is a slim, embeddable test runner for .NET host applications — Blazor, .NET
 
 > **Status:** v1 preview (`1.0.0-preview1`). The public API is intentionally small. The JSON shape of `TestRunReport` is the stability contract; changes are additive only.
 
----
-
 ## The Problem
 
 Modern applications depend on runtime behavior that cannot be faithfully validated using mocks:
@@ -35,8 +33,6 @@ Modern applications depend on runtime behavior that cannot be faithfully validat
 These are real runtime concerns. A unit test with a fake `IJSRuntime` cannot tell you whether `localStorage` actually works in the real browser. A mocked `HttpClient` cannot tell you whether the host configured the base address correctly. A fake dispatcher cannot prove the real UI thread processes work in order.
 
 Runtime correctness demands runtime execution.
-
----
 
 ## The Missing Testing Layer
 
@@ -72,8 +68,6 @@ Each layer answers a distinct question:
 
 Unit tests validate deterministic code. Integration tests validate external communication. End-to-end tests validate user workflows. **Runtime Conformance validates that the platform itself behaves correctly under your abstractions.**
 
----
-
 ## The Runtime Rule
 
 Determining whether a test belongs in Runtime Conformance comes down to a single architectural question:
@@ -83,8 +77,6 @@ Determining whether a test belongs in Runtime Conformance comes down to a single
 If the answer is yes, it belongs in Runtime Conformance.
 
 The runtime — not Pulse — is the architectural boundary. Pulse is simply the execution engine that makes it possible to run these validations inside the real app.
-
----
 
 ## What Runtime Conformance Validates
 
@@ -97,8 +89,6 @@ Runtime Conformance validates three things:
 It does **not** validate implementation details. The conformance target is the observable behavior at the boundary, not the internal wiring.
 
 **Pulse executes specifications against real runtime implementations.** The specification describes *what* the behavior should be. Pulse proves it holds inside the real environment.
-
----
 
 ## Quick Start
 
@@ -170,8 +160,6 @@ Console.WriteLine(report.Success ? "All conformance tests passed." : "Failures d
 ```
 
 Pulse is report-first: `RunAsync` returns a failed report for failed tests. It does not throw because a test case failed.
-
----
 
 ## Runner-Neutral Specifications
 
@@ -254,8 +242,6 @@ The same specification validates `ITokenStorage` against an in-memory fake in `d
 
 For the complete rulebook on shared specs, adapters, and boundary-focused matrices, see [Conformance Specs And Rules](docs/conformance-specs-and-rules.md).
 
----
-
 ## Writing Suites
 
 Use `[PulseCase]` for individual tests and `[PulseMatrix]` with `[PulseRow]` for parameterized rows. Every matrix row produces its own `TestResult`.
@@ -322,8 +308,6 @@ Use `PulseAssert` in Pulse-only suites and Pulse adapter bodies. Shared `*.TestS
 | Cancellation | `RunAsync(ct)` is honored between tests. Mid-test deadlines require a trailing `CancellationToken`. |
 | Timeouts | Cooperative. Pulse creates a linked token when the method declares a trailing `CancellationToken`. No thread abort. |
 
----
-
 ## Report Contract
 
 `TestRunReport` is the integration contract for UIs, CI, and dashboards:
@@ -353,8 +337,6 @@ var json = JsonSerializer.Serialize(report, PulseJsonContext.Default.TestRunRepo
 
 The report is additive-only. Future fields may appear; existing fields retain their meaning under the `pulse/v1` schema.
 
----
-
 ## What Runtime Conformance Is NOT
 
 | Scenario | Test Type |
@@ -374,8 +356,6 @@ The report is additive-only. Future fields may appear; existing fields retain th
 
 The boundary is clear: if removing the real runtime makes the test meaningless, it is Runtime Conformance.
 
----
-
 ## Pulse's Responsibility
 
 Pulse owns **runtime behavioral validation**. It is deliberately focused.
@@ -390,8 +370,6 @@ Pulse intentionally does **not** attempt to become:
 - A CLI runner
 
 Keeping this responsibility narrow is an architectural decision. Pulse complements `dotnet test`, xUnit, NUnit, Playwright, and XHarness — it does not compete with them.
-
----
 
 ## Hosting Pulse
 
@@ -433,8 +411,6 @@ app.MapPost("/_pulse/run", async (ITestExecutor executor, CancellationToken ct) 
 
 Authentication, retries, and storage policy belong to your app. Pulse provides the stable report; the host owns transport.
 
----
-
 ## What's In The Box
 
 - `[PulseCase]`, `[PulseMatrix]`, and `[PulseRow]` for explicit suite discovery
@@ -454,8 +430,6 @@ Pulse stays small by design:
 - No reporter framework — serialize `TestRunReport` directly
 - No mocking framework, fixture container, parallel execution, auto-retry, member-data row source, test ordering attributes, or fluent assertion DSL
 - No `Microsoft.Testing.Platform.MSBuild`
-
----
 
 ## A Failure Pulse Is Meant To Catch
 
@@ -484,8 +458,6 @@ public sealed class WeatherClientHostSuite
 
 If the fake-backed unit test passes but this Pulse case fails in the real host, Pulse is telling you something important: the abstraction is plausible, but the app wiring is broken.
 
----
-
 ## Samples
 
 Reference consumers under [`sample/`](sample/):
@@ -498,8 +470,6 @@ Reference consumers under [`sample/`](sample/):
 
 Samples are copy-paste references, not packages. Host integration belongs to the consuming app.
 
----
-
 ## Troubleshooting
 
 | Symptom | What to check |
@@ -510,8 +480,6 @@ Samples are copy-paste references, not packages. Host integration belongs to the
 | Shared specs need assertions | In `*.TestSupport`, throw ordinary BCL exceptions. Use `PulseAssert` only in Pulse suites or adapter bodies. |
 | A Pulse suite needs fake dependencies | Keep the conformance target real. Non-target dependencies can be fake. |
 
----
-
 ## Contributing
 
 Issues, discussions, and pull requests are welcome on [github.com/Circuids/Pulse](https://github.com/Circuids/Pulse). Pulse keeps a deliberately small surface: one package, two runtime dependencies, sequential execution, cooperative cancellation, and additive-only reports. Please open an issue before any change that touches public API or adds a dependency.
@@ -519,8 +487,6 @@ Issues, discussions, and pull requests are welcome on [github.com/Circuids/Pulse
 If Pulse saves you time, you can support continued work through GitHub Sponsors:
 
 [**Sponsor Circuids on GitHub →**](https://github.com/sponsors/Circuids)
-
----
 
 ## License
 
