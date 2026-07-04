@@ -17,7 +17,7 @@
 
 It is a slim, embeddable test runner for .NET host applications — Blazor, .NET MAUI, WPF, WinForms, Avalonia, Uno, console hosts, and anything that boots an `IServiceProvider`. Pulse executes `[PulseCase]` and `[PulseMatrix]` suites in-process with the consumer's real DI graph, host services, and platform APIs, then returns a strongly-typed `TestRunReport`.
 
-> **Status:** v1 preview (`1.0.0-preview1`). The public API is intentionally small. The JSON shape of `TestRunReport` is the stability contract; changes are additive only.
+> **Status:** v1 preview (`1.0.0-preview2`). The public API is intentionally small. The JSON shape of `TestRunReport` is the stability contract; changes are additive only.
 
 ## The Problem
 
@@ -93,7 +93,7 @@ It does **not** validate implementation details. The conformance target is the o
 ## Quick Start
 
 ```pwsh
-dotnet add package Circuids.Pulse --version 1.0.0-preview1
+dotnet add package Circuids.Pulse --version 1.0.0-preview2
 ```
 
 Targets `net8.0`, `net9.0`, and `net10.0`.
@@ -335,6 +335,48 @@ Serialize with the source-generated context:
 var json = JsonSerializer.Serialize(report, PulseJsonContext.Default.TestRunReport);
 ```
 
+### Human-readable formatting
+
+Use `TestRunReportFormatter.Format` to produce Pulse's canonical plain-text representation for console output, CI logs, or bug reports:
+
+```csharp
+var report = await executor.RunAsync();
+Console.WriteLine(TestRunReportFormatter.Format(report));
+```
+
+The formatter is a pure transformation with zero knowledge of Console, Terminal, logging, or DI. It produces deterministic plain text — no ANSI codes — suitable for any text sink.
+
+```
+────────────────────────────────────────────────
+Pulse Test Run Report
+────────────────────────────────────────────────
+
+Status   : Passed
+Duration : 2.14 s
+Platform : Blazor.WebAssembly
+
+Runtime
+  .NET      : .NET 10.0.2
+  OS        : Microsoft Windows 10.0.26100
+  Runtime   : browser-wasm
+  Processor : Wasm (16 cores)
+  Machine   : MYMACHINE
+
+Summary
+  Passed  : 18
+  Failed  : 0
+  Skipped : 0
+  Total   : 18
+
+────────────────────────────────────────────────
+Results
+────────────────────────────────────────────────
+
+✓ HttpClientSuite (2 tests, 215 ms)
+  ✓ GET_root_returns_success (112 ms)
+  ✓ HttpClient_has_an_absolute_base_address (103 ms)
+```
+
 The report is additive-only. Future fields may appear; existing fields retain their meaning under the `pulse/v1` schema.
 
 ## What Runtime Conformance Is NOT
@@ -419,6 +461,7 @@ Authentication, retries, and storage policy belong to your app. Pulse provides t
 - Cooperative per-test timeout/cancellation through trailing `CancellationToken` injection
 - `TestRunReport`, `TestResult`, `TestOutcome`, and `RuntimeEnvironment` models
 - `PulseJsonContext` for source-generated `System.Text.Json` serialization
+- `TestRunReportFormatter` for canonical plain-text report rendering
 - `RuntimeEnvironment` registered as a DI singleton
 
 ## What's Not In The Box
