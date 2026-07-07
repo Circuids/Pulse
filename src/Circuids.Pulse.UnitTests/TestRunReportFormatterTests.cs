@@ -5,8 +5,6 @@ namespace Circuids.Pulse.UnitTests;
 
 public sealed class TestRunReportFormatterTests
 {
-    // ── Helpers ──────────────────────────────────────────────
-
     private static TestRunReport CreateReport(
         string assignedPlatform = "TestPlatform",
         params TestResult[] results) =>
@@ -65,8 +63,6 @@ public sealed class TestRunReportFormatterTests
             Duration = TimeSpan.Zero,
         };
 
-    // ── Successful execution ─────────────────────────────────
-
     [Fact]
     public void Format_SingleSuite_AllPassed_ProducesConciseOutput()
     {
@@ -114,8 +110,6 @@ public sealed class TestRunReportFormatterTests
         Assert.Contains("  Total".PadRight(12) + ": 3", output);
     }
 
-    // ── Mixed results ────────────────────────────────────────
-
     [Fact]
     public void Format_MixedOutcomes_GroupsPassedBeforeSkippedBeforeFailed()
     {
@@ -147,8 +141,6 @@ public sealed class TestRunReportFormatterTests
         Assert.Contains("  ✓ GoodTest (10 ms)", output);
         Assert.Contains("  ✗ BadTest (45 ms)", output);
     }
-
-    // ── Skipped tests ────────────────────────────────────────
 
     [Fact]
     public void Format_AllSkippedSuite_ShowsConciseSkippedLine()
@@ -184,8 +176,6 @@ public sealed class TestRunReportFormatterTests
 
         Assert.Contains("○ SuiteX  Skipped", output);
     }
-
-    // ── Failure formatting ───────────────────────────────────
 
     [Fact]
     public void Format_FailedTest_IncludesMessageAndStackTrace()
@@ -229,8 +219,6 @@ public sealed class TestRunReportFormatterTests
         Assert.Contains("✗ BrokenSuite", output);
     }
 
-    // ── Empty report ─────────────────────────────────────────
-
     [Fact]
     public void Format_EmptyReport_ProducesValidOutput()
     {
@@ -257,8 +245,6 @@ public sealed class TestRunReportFormatterTests
         Assert.Throws<ArgumentNullException>(() => TestRunReportFormatter.Format(null!));
     }
 
-    // ── Runtime environment ──────────────────────────────────
-
     [Fact]
     public void Format_IncludesRuntimeEnvironmentDetails()
     {
@@ -273,8 +259,6 @@ public sealed class TestRunReportFormatterTests
         Assert.Contains("X64 (16 cores)", output);
     }
 
-    // ── Deterministic output ─────────────────────────────────
-
     [Fact]
     public void Format_SameReport_ProducesIdenticalOutput()
     {
@@ -288,8 +272,6 @@ public sealed class TestRunReportFormatterTests
 
         Assert.Equal(output1, output2);
     }
-
-    // ── Large reports ────────────────────────────────────────
 
     [Fact]
     public void Format_LargeReport_RemainsReadable()
@@ -309,7 +291,6 @@ public sealed class TestRunReportFormatterTests
 
         Assert.Contains("  Total".PadRight(12) + ": 500", output);
         Assert.Contains("  Passed".PadRight(12) + ": 500", output);
-        // Verify it's not truncated — all 50 suites should appear
         Assert.Contains("✓ Suite049 (10 tests, 10 ms)", output);
         Assert.Contains("✓ Suite000 (10 tests, 10 ms)", output);
     }
@@ -335,16 +316,12 @@ public sealed class TestRunReportFormatterTests
         Assert.Contains("  Total".PadRight(12) + ": 41", output);
     }
 
-    // ── Duration formatting (verified through Format output) ─
-
     [Fact]
     public void Format_DurationZero_ShowsDashForSkippedTest()
     {
         var report = CreateReport("Test",
             SkippedResult("Suite", "SkippedTest"));
         var output = TestRunReportFormatter.Format(report);
-        // Skipped tests have zero duration; the suite header also shows zero.
-        // All-skipped suites use compact style without duration.
         Assert.Contains("○ Suite  Skipped", output);
     }
 
@@ -385,8 +362,6 @@ public sealed class TestRunReportFormatterTests
         Assert.Contains("1h 1m 1.00 s", output);
     }
 
-    // ── Edge cases ───────────────────────────────────────────
-
     [Fact]
     public void Format_SuiteWithLongName_DoesNotTruncate()
     {
@@ -421,7 +396,6 @@ public sealed class TestRunReportFormatterTests
 
         var output = TestRunReportFormatter.Format(report);
 
-        // The ✗ must appear for the failed suite, not ✓
         Assert.Contains("✗ BrokenSuite", output);
         Assert.Contains("✓ PassingSuite", output);
     }
@@ -435,7 +409,6 @@ public sealed class TestRunReportFormatterTests
 
         var output = TestRunReportFormatter.Format(report);
 
-        // Since there's no failure, it should appear in passed group with full detail
         Assert.Contains("✓ MixedSuite (2 tests, 10 ms)", output);
         Assert.Contains("  ✓ ActiveTest (10 ms)", output);
         Assert.Contains("  ○ PendingTest – WIP", output);
