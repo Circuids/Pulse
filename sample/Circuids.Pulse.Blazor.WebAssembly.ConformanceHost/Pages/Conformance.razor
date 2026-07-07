@@ -95,6 +95,7 @@
         try
         {
             _report = await Executor.RunAsync();
+            Console.WriteLine(TestRunReportFormatter.Format(_report));
             _reportJson = JsonSerializer.Serialize(
                 _report,
                 PulseJsonContext.Default.TestRunReport);

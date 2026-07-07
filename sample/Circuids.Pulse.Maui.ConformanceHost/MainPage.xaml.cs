@@ -1,3 +1,5 @@
+using System.Diagnostics;
+
 namespace Circuids.Pulse.Maui.Sample;
 
 public partial class MainPage : ContentPage
@@ -21,6 +23,8 @@ public partial class MainPage : ContentPage
         try
         {
             var report = await _executor.RunAsync();
+
+            Debug.WriteLine(TestRunReportFormatter.Format(report));
 
             SummaryLabel.Text =
                 $"{(report.Success ? "PASS" : "FAIL")}  ·  " +

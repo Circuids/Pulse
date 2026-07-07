@@ -1,4 +1,5 @@
-﻿using System.Text.Json;
+﻿using System.Diagnostics;
+using System.Text.Json;
 using System.Windows;
 using System.Windows.Controls;
 using Circuids.Pulse;
@@ -63,6 +64,7 @@ public partial class MainWindow : Window
         try
         {
             var report = await _executor.RunAsync();
+            Debug.WriteLine(TestRunReportFormatter.Format(report));
             _summaryText.Text = $"{(report.Success ? "PASS" : "FAIL")} - {report.Total} total, {report.Passed} passed, {report.Failed} failed, {report.Skipped} skipped";
             _jsonTextBox.Text = JsonSerializer.Serialize(report, PulseJsonContext.Default.TestRunReport);
             _resultsGrid.ItemsSource = report.Results.Select(ResultRow.From).ToList();
