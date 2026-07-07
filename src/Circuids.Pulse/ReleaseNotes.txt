@@ -1,3 +1,8 @@
+v1.0.0-preview2
+- Adds TestRunReportFormatter for canonical plain-text report rendering.
+- Consumers can now call TestRunReportFormatter.Format(report) to produce
+  human-readable output for console, CI logs, bug reports, or any text sink.
+
 v1.0.0-preview1
 - First v1 preview release of Circuids.Pulse.
 - Locks the one-package in-app runner model for real host conformance tests.
