@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using Circuids.Pulse.Internal;
 using Microsoft.Extensions.DependencyInjection;
 
@@ -39,10 +40,12 @@ public sealed class PulseBuilder
     public TimeSpan? DefaultTestTimeout { get; set; }
 
     /// <summary>
-    /// Registers a suite type that Pulse will resolve from the host's
-    /// <see cref="IServiceProvider"/> (via <see cref="ActivatorUtilities"/>) at run time.
+    /// Registers a suite type that Pulse will resolve at run time (via <see cref="ActivatorUtilities"/>)
+    /// from a per-suite DI scope created over the host's <see cref="IServiceProvider"/>. Scoped
+    /// services injected into the suite are distinct per suite and disposed when the suite finishes.
+    /// The suite type's public methods and constructors are preserved for IL trimming.
     /// </summary>
-    public PulseBuilder AddSuite<TSuite>() where TSuite : class
+    public PulseBuilder AddSuite<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicConstructors)] TSuite>() where TSuite : class
     {
         _suites.Add(new SuiteRegistration(typeof(TSuite), null));
         return this;
@@ -51,8 +54,11 @@ public sealed class PulseBuilder
     /// <summary>
     /// Registers a suite type with an explicit factory. Use this when the suite has dependencies
     /// that aren't (or shouldn't be) registered in the host's <see cref="IServiceProvider"/>.
+    /// The factory receives the per-suite scoped <see cref="IServiceProvider"/>, so services it
+    /// resolves share the suite's lifetime and are disposed when the suite finishes.
+    /// The suite type's public methods and constructors are preserved for IL trimming.
     /// </summary>
-    public PulseBuilder AddSuite<TSuite>(Func<IServiceProvider, TSuite> factory) where TSuite : class
+    public PulseBuilder AddSuite<[DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicConstructors)] TSuite>(Func<IServiceProvider, TSuite> factory) where TSuite : class
     {
         if (factory is null) throw new ArgumentNullException(nameof(factory));
         _suites.Add(new SuiteRegistration(typeof(TSuite), sp => factory(sp)));
@@ -61,9 +67,13 @@ public sealed class PulseBuilder
 
     /// <summary>
     /// Registers a suite by <see cref="Type"/> with an explicit factory. The factory must return
-    /// an instance assignable to <paramref name="suiteType"/>.
+    /// an instance assignable to <paramref name="suiteType"/> and receives the per-suite scoped
+    /// <see cref="IServiceProvider"/>. The suite type's public methods and constructors are
+    /// preserved for IL trimming.
     /// </summary>
-    public PulseBuilder AddSuite(Type suiteType, Func<IServiceProvider, object> factory)
+    public PulseBuilder AddSuite(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods | DynamicallyAccessedMemberTypes.PublicConstructors)] Type suiteType,
+        Func<IServiceProvider, object> factory)
     {
         if (suiteType is null) throw new ArgumentNullException(nameof(suiteType));
         if (factory is null) throw new ArgumentNullException(nameof(factory));

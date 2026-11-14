@@ -1,3 +1,4 @@
+using System.Diagnostics.CodeAnalysis;
 using System.Reflection;
 
 namespace Circuids.Pulse.Internal;
@@ -51,7 +52,8 @@ internal static class ReflectionDiscovery
     private const BindingFlags MethodFlags =
         BindingFlags.Public | BindingFlags.Instance | BindingFlags.FlattenHierarchy;
 
-    public static IReadOnlyList<DiscoveredTest> Discover(Type suiteType)
+    public static IReadOnlyList<DiscoveredTest> Discover(
+        [DynamicallyAccessedMembers(DynamicallyAccessedMemberTypes.PublicMethods)] Type suiteType)
     {
         if (suiteType is null) throw new ArgumentNullException(nameof(suiteType));
 

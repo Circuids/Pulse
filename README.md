@@ -17,7 +17,7 @@
 
 It is a slim, embeddable test runner for .NET host applications — Blazor, .NET MAUI, WPF, WinForms, Avalonia, Uno, console hosts, and anything that boots an `IServiceProvider`. Pulse executes `[PulseCase]` and `[PulseMatrix]` suites in-process with the consumer's real DI graph, host services, and platform APIs, then returns a strongly-typed `TestRunReport`.
 
-> **Status:** v1 preview (`1.0.0-preview2`). The public API is intentionally small. The JSON shape of `TestRunReport` is the stability contract; changes are additive only.
+> **Status:** v1 preview (`1.0.0-preview3`). The public API is intentionally small. The JSON shape of `TestRunReport` is the stability contract; changes are additive only.
 
 ## The Problem
 
@@ -93,10 +93,10 @@ It does **not** validate implementation details. The conformance target is the o
 ## Quick Start
 
 ```pwsh
-dotnet add package Circuids.Pulse --version 1.0.0-preview2
+dotnet add package Circuids.Pulse --version 1.0.0-preview3
 ```
 
-Targets `net8.0`, `net9.0`, and `net10.0`.
+Targets `net10.0`.
 
 ### Runtime dependencies
 
@@ -120,7 +120,7 @@ builder.Services.AddPulse(p =>
 
 ### 2. Write suites
 
-Suites are plain classes resolved through the same `IServiceProvider` as the rest of your app:
+Suites are plain classes constructed from a per-suite DI scope over your app's `IServiceProvider`. Scoped services are fresh for each suite and disposed when the suite finishes; singletons stay shared with the host:
 
 ```csharp
 public sealed class HttpClientSuite
@@ -303,6 +303,8 @@ Use `PulseAssert` in Pulse-only suites and Pulse adapter bodies. Shared `*.TestS
 | Suite filter | `RunAsync(string suiteName)` matches `Type.FullName` exactly. |
 | Order | Sequential. Boundary tests share real host state. |
 | Construction failure | Recorded as a failed `(suite construction)` result; later suites continue. |
+| Suite DI scope | One `AsyncServiceScope` per suite; factories and DI construction both receive the scoped provider. Scoped services dispose at the suite boundary. |
+| Scope disposal failure | Recorded as a failed `(suite scope dispose)` result; later suites continue. |
 | Test failure | The thrown exception becomes a failed `TestResult`. `RunAsync` does not throw. |
 | Runtime skip | Throw `PulseSkipException`, call `PulseAssert.Skip(...)`, or throw xUnit's skip exception by name. |
 | Cancellation | `RunAsync(ct)` is honored between tests. Mid-test deadlines require a trailing `CancellationToken`. |
@@ -458,6 +460,8 @@ Authentication, retries, and storage policy belong to your app. Pulse provides t
 - `[PulseCase]`, `[PulseMatrix]`, and `[PulseRow]` for explicit suite discovery
 - `PulseAssert` — a focused assertion library with consistent failure messages
 - `IPulseLifetime` for per-suite `InitializeAsync` / `DisposeAsync`; `IDisposable` and `IAsyncDisposable` also honored
+- Per-suite `AsyncServiceScope` — scoped services are isolated per suite and disposed at the suite boundary
+- Trim-safe suite registration — `DynamicallyAccessedMembers` annotations keep registered suites working in IL-trimmed hosts (verified on trimmed Blazor WASM)
 - Cooperative per-test timeout/cancellation through trailing `CancellationToken` injection
 - `TestRunReport`, `TestResult`, `TestOutcome`, and `RuntimeEnvironment` models
 - `PulseJsonContext` for source-generated `System.Text.Json` serialization
@@ -522,6 +526,7 @@ Samples are copy-paste references, not packages. Host integration belongs to the
 | `RunAsync(string suiteName)` returns an empty report | Pass the suite type's exact `FullName`; matching is ordinal and case-sensitive. |
 | Shared specs need assertions | In `*.TestSupport`, throw ordinary BCL exceptions. Use `PulseAssert` only in Pulse suites or adapter bodies. |
 | A Pulse suite needs fake dependencies | Keep the conformance target real. Non-target dependencies can be fake. |
+| A suite registered as a scoped DI service gets disposed twice | Pulse teardown and the suite scope both dispose it. Make `Dispose`/`DisposeAsync` idempotent (standard BCL guidance). |
 
 ## Contributing
 

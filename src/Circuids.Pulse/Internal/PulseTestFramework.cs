@@ -106,82 +106,92 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
             if (!MatchesFilter(suiteName)) continue;
 
             object suiteInstance;
+            // One scope per suite: construction, lifetime, and teardown all resolve from it, so
+            // scoped services are fresh per suite and disposed at the suite boundary.
+            var scope = _runContext.HostServices.CreateAsyncScope();
             try
             {
-                suiteInstance = registration.Factory is not null
-                    ? registration.Factory(_runContext.HostServices)
-                    : ActivatorUtilities.CreateInstance(_runContext.HostServices, registration.SuiteType);
-            }
-            catch (Exception ex)
-            {
-                await ReportFailureAsync(
-                    context, sessionUid, suiteName,
-                    testName: "(suite construction)",
-                    message: $"Failed to construct suite: {ex.Message}",
-                    stack: ex.StackTrace,
-                    elapsed: TimeSpan.Zero,
-                    exception: ex).ConfigureAwait(false);
-                continue;
-            }
-
-            var lifetimeDisposeRequired = false;
-            try
-            {
-                IReadOnlyList<DiscoveredTest> tests;
                 try
                 {
-                    tests = ReflectionDiscovery.Discover(registration.SuiteType);
+                    suiteInstance = registration.Factory is not null
+                        ? registration.Factory(scope.ServiceProvider)
+                        : ActivatorUtilities.CreateInstance(scope.ServiceProvider, registration.SuiteType);
                 }
                 catch (Exception ex)
                 {
                     await ReportFailureAsync(
                         context, sessionUid, suiteName,
-                        testName: "(discovery)",
-                        message: ex.Message,
+                        testName: "(suite construction)",
+                        message: $"Failed to construct suite: {ex.Message}",
                         stack: ex.StackTrace,
                         elapsed: TimeSpan.Zero,
                         exception: ex).ConfigureAwait(false);
                     continue;
                 }
 
-                lifetimeDisposeRequired = suiteInstance is IPulseLifetime;
-                var initializationFailure = await InvokeLifetimeAsync(suiteInstance, initialize: true, context, sessionUid, suiteName)
-                    .ConfigureAwait(false);
-
-                if (initializationFailure is not null)
+                var lifetimeDisposeRequired = false;
+                try
                 {
-                    var skipReason = $"Suite initialization failed: {initializationFailure}";
-                    foreach (var test in tests)
+                    IReadOnlyList<DiscoveredTest> tests;
+                    try
                     {
-                        if (context.CancellationToken.IsCancellationRequested) return;
-                        _runContext.OuterCancellation.ThrowIfCancellationRequested();
+                        tests = ReflectionDiscovery.Discover(registration.SuiteType);
+                    }
+                    catch (Exception ex)
+                    {
+                        await ReportFailureAsync(
+                            context, sessionUid, suiteName,
+                            testName: "(discovery)",
+                            message: ex.Message,
+                            stack: ex.StackTrace,
+                            elapsed: TimeSpan.Zero,
+                            exception: ex).ConfigureAwait(false);
+                        continue;
+                    }
 
-                        var uid = new TestNodeUid($"{test.SuiteName}::{test.TestName}");
-                        await ReportSkippedAsync(context, sessionUid, uid, test, skipReason, TimeSpan.Zero)
-                            .ConfigureAwait(false);
+                    lifetimeDisposeRequired = suiteInstance is IPulseLifetime;
+                    var initializationFailure = await InvokeLifetimeAsync(suiteInstance, initialize: true, context, sessionUid, suiteName)
+                        .ConfigureAwait(false);
+
+                    if (initializationFailure is not null)
+                    {
+                        var skipReason = $"Suite initialization failed: {initializationFailure}";
+                        foreach (var test in tests)
+                        {
+                            if (context.CancellationToken.IsCancellationRequested) return;
+                            _runContext.OuterCancellation.ThrowIfCancellationRequested();
+
+                            var uid = new TestNodeUid($"{test.SuiteName}::{test.TestName}");
+                            await ReportSkippedAsync(context, sessionUid, uid, test, skipReason, TimeSpan.Zero)
+                                .ConfigureAwait(false);
+                        }
+                    }
+                    else
+                    {
+                        foreach (var test in tests)
+                        {
+                            if (context.CancellationToken.IsCancellationRequested) return;
+                            _runContext.OuterCancellation.ThrowIfCancellationRequested();
+
+                            await RunOneAsync(context, sessionUid, suiteInstance, test).ConfigureAwait(false);
+                        }
                     }
                 }
-                else
+                finally
                 {
-                    foreach (var test in tests)
+                    if (lifetimeDisposeRequired)
                     {
-                        if (context.CancellationToken.IsCancellationRequested) return;
-                        _runContext.OuterCancellation.ThrowIfCancellationRequested();
-
-                        await RunOneAsync(context, sessionUid, suiteInstance, test).ConfigureAwait(false);
+                        await InvokeLifetimeAsync(suiteInstance, initialize: false, context, sessionUid, suiteName)
+                            .ConfigureAwait(false);
                     }
+
+                    await DisposeSuiteAsync(suiteInstance, context, sessionUid, suiteName)
+                        .ConfigureAwait(false);
                 }
             }
             finally
             {
-                if (lifetimeDisposeRequired)
-                {
-                    await InvokeLifetimeAsync(suiteInstance, initialize: false, context, sessionUid, suiteName)
-                        .ConfigureAwait(false);
-                }
-
-                await DisposeSuiteAsync(suiteInstance, context, sessionUid, suiteName)
-                    .ConfigureAwait(false);
+                await DisposeScopeAsync(scope, context, sessionUid, suiteName).ConfigureAwait(false);
             }
         }
     }
@@ -239,6 +249,28 @@ internal sealed class PulseTestFramework : ITestFramework, IDataProducer
             await ReportFailureAsync(
                 context, sessionUid, suiteName,
                 testName: "(suite Dispose)",
+                message: ex.Message,
+                stack: ex.StackTrace,
+                elapsed: TimeSpan.Zero,
+                exception: ex).ConfigureAwait(false);
+        }
+    }
+
+    private async Task DisposeScopeAsync(
+        AsyncServiceScope scope,
+        ExecuteRequestContext context,
+        SessionUid sessionUid,
+        string suiteName)
+    {
+        try
+        {
+            await scope.DisposeAsync().ConfigureAwait(false);
+        }
+        catch (Exception ex)
+        {
+            await ReportFailureAsync(
+                context, sessionUid, suiteName,
+                testName: "(suite scope dispose)",
                 message: ex.Message,
                 stack: ex.StackTrace,
                 elapsed: TimeSpan.Zero,
