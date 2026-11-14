@@ -1,3 +1,17 @@
+v1.0.0-preview3
+- Suites now run inside a per-suite AsyncServiceScope: scoped services are fresh per
+  suite and disposed at the suite boundary; factory delegates receive the scoped
+  provider (behavior change for AddSuite(factory) consumers).
+- Scope disposal failures are reported as a synthetic "(suite scope dispose)" failed
+  result; the run continues and RunAsync still returns a report.
+- Trim-safe registration: AddSuite overloads and the discovery path carry
+  DynamicallyAccessedMembers annotations; the library builds with the trim analyzer
+  enabled and trim diagnostics as errors. Registered suites survive IL-trimmed hosts
+  (verified end-to-end on a trimmed Blazor WebAssembly publish).
+- Targets net10.0 only; net8.0/net9.0 assets removed (both out of support).
+- Dependencies: Microsoft.Extensions.DependencyInjection.Abstractions 10.0.15,
+  Microsoft.Testing.Platform 2.5.3.
+
 v1.0.0-preview2
 - Adds TestRunReportFormatter for canonical plain-text report rendering.
 - Consumers can now call TestRunReportFormatter.Format(report) to produce
