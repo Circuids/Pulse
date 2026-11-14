@@ -48,7 +48,7 @@ internal_docs/pulse-architecture.md  ← Living architecture document — UPDATE
 
 ## Coding conventions
 
-- **TargetFrameworks:** `net8.0;net9.0;net10.0`. Anything new must work across all three.
+- **TargetFramework:** `net10.0`. Anything new must work on it.
 - **Nullability:** enabled. Public APIs have `[NotNull]` / `?` / nullable annotations.
 - **Records for models** (`TestRunReport`, `TestResult`, `RuntimeEnvironment`). Immutable, source-gen-friendly — no polymorphism, no `object`, no `dynamic`.
 - **`internal sealed class`** for everything under `Internal/`. Public surface is the bare minimum.
